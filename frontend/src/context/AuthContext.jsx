@@ -26,10 +26,21 @@ export const AuthProvider = ({ children }) => {
     init();
   }, []);
 
-  const authenticateUser = ({ token, role, email, _id }) => {
+  const authenticateUser = async ({ token, role, email, _id }) => {
     setToken(token);
     setUser({ _id, role, email });
     setStoredAuth({ token, role, email });
+    try {
+      const me = await meApi();
+      setUser(prev => ({ 
+        ...prev, 
+        profileId: me.profileId, 
+        firstName: me.firstName, 
+        lastName: me.lastName 
+      }));
+    } catch (err) {
+      // Fallback already set above
+    }
   };
 
   const login = async (email, password) => {

@@ -16,13 +16,17 @@ const HomePage = () => {
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white mb-6 animate-slide-up">
-            Master your future with <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-purple-400">NextGen</span> LMS
+          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight md:leading-tight text-white mb-6 animate-slide-up max-w-[90%] mx-auto">
+            Master Your Future with <span className="relative inline-block">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-violet-400 drop-shadow-[0_0_20px_rgba(129,140,248,0.4)]">
+                Learn<span className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-pink-500 font-black">X</span>
+              </span>
+            </span>
           </h1>
           <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             A unified learning platform designed to elevate your educational journey. Browse world-class courses, interact with top instructors, and track your true potential.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: '0.4s' }}>
             {!user ? (
               <>
@@ -65,7 +69,7 @@ const HomePage = () => {
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">Why choose our platform?</h2>
           <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">Discover a new standard of online education built with modern tools and highly engaging content.</p>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Feature 1 */}
           <div className="glass-card p-8 group hover:-translate-y-2 transition-transform duration-300">
@@ -101,7 +105,7 @@ const HomePage = () => {
           </div>
         </div>
       </section>
-      
+
       {/* Instructor CTA */}
       {!user && (
         <section className="mt-8 rounded-3xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-dark-800 dark:to-dark-900 p-10 md:p-16 flex flex-col md:flex-row items-center justify-between gap-10 border border-slate-200 dark:border-dark-800">
@@ -116,9 +120,9 @@ const HomePage = () => {
             </Link>
           </div>
           <div className="w-full md:w-1/3 aspect-square max-w-sm bg-gradient-to-tr from-primary-500 to-purple-500 rounded-3xl rotate-3 opacity-90 shadow-2xl flex items-center justify-center p-8">
-             <div className="w-full h-full border-4 border-white/30 rounded-2xl flex items-center justify-center -rotate-6">
-                <span className="text-white text-5xl font-black opacity-50 block rotate-12">TEACH</span>
-             </div>
+            <div className="w-full h-full border-4 border-white/30 rounded-2xl flex items-center justify-center -rotate-6">
+              <span className="text-white text-5xl font-black opacity-50 block rotate-12">TEACH</span>
+            </div>
           </div>
         </section>
       )}
@@ -127,4 +131,3 @@ const HomePage = () => {
 };
 
 export default HomePage;
-
