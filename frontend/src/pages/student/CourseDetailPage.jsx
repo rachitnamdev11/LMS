@@ -1,0 +1,334 @@
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { getCourseDetailApi } from '../../services/courseApi.js';
+import { createEnrollmentOrderApi, verifyPaymentApi } from '../../services/paymentApi.js';
+import { useAuth } from '../../hooks/useAuth.js';
+
+const CourseDetailPage = () => {
+  const { user } = useAuth();
+  const { courseId } = useParams();
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [processingPayment, setProcessingPayment] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await getCourseDetailApi(courseId);
+        setData(res);
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to load course');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [courseId]);
+
+  const handleBuy = async () => {
+    setProcessingPayment(true);
+    try {
+      const order = await createEnrollmentOrderApi(courseId);
+
+      const loadScript = (src) =>
+        new Promise((resolve, reject) => {
+          if (document.querySelector(`script[src="${src}"]`)) {
+            resolve(true);
+            return;
+          }
+          const script = document.createElement('script');
+          script.src = src;
+          script.onload = () => resolve(true);
+          script.onerror = () => reject(new Error('Failed to load script'));
+          document.body.appendChild(script);
+        });
+
+      await loadScript('https://checkout.razorpay.com/v1/checkout.js');
+
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+      if (!window.Razorpay || !razorpayKey) {
+        console.error('Razorpay not configured');
+        alert("Payment gateway is not configured properly.");
+        setProcessingPayment(false);
+        return;
+      }
+
+      const options = {
+        key: razorpayKey,
+        amount: order.amount,
+        currency: order.currency,
+        order_id: order.orderId,
+        name: 'Learning Platform',
+        description: `Enroll in ${data?.course?.name}`,
+        theme: { color: '#4f46e5' },
+        handler: async (response) => {
+          try {
+            await verifyPaymentApi({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature
+            });
+            // After verification, navigate to dashboard.
+            navigate('/student/dashboard');
+          } catch (err) {
+            console.error(err);
+            alert("Payment verification failed. Please contact support.");
+          }
+        },
+        modal: {
+           ondismiss: function() {
+              setProcessingPayment(false);
+           }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to initiate payment.");
+      setProcessingPayment(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[500px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto mt-20 p-8 glass-card text-center border border-red-200 dark:border-red-900">
+        <div className="w-16 h-16 mx-auto bg-red-100 dark:bg-red-900/50 text-red-500 rounded-full flex items-center justify-center mb-4">
+          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </div>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Oops! Something went wrong</h2>
+        <p className="text-slate-500 mb-6">{error}</p>
+        <button onClick={() => navigate(-1)} className="px-6 py-2 bg-slate-200 dark:bg-dark-800 rounded-lg hover:bg-slate-300 dark:hover:bg-dark-700 transition-colors font-medium">
+          Go Back
+        </button>
+      </div>
+    );
+  }
+
+  const { course, lectures } = data || {};
+
+  return (
+    <div className="animate-fade-in pb-16">
+      
+      {/* Course Banner Component */}
+      <div className="bg-slate-900 dark:bg-dark-950 rounded-3xl overflow-hidden shadow-2xl relative mb-12 border border-slate-800">
+        <div className="absolute inset-0 z-0 opacity-20 bg-cover bg-center" style={{ backgroundImage: `url(${course?.thumbnailUrl || ''})`, filter: 'blur(20px) brightness(0.5)' }}></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-slate-900/40 z-0"></div>
+        
+        <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row gap-8 items-start md:items-center">
+          {course?.thumbnailUrl && (
+            <div className="hidden md:block w-1/3 aspect-video shrink-0 rounded-xl overflow-hidden shadow-2xl border-4 border-slate-800">
+              <img src={course.thumbnailUrl} alt={course.name} className="w-full h-full object-cover" />
+            </div>
+          )}
+          
+          <div className="flex-1 text-white">
+             <div className="flex gap-2 mb-4">
+               {course?.language && (
+                 <span className="px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-xs font-bold uppercase tracking-wider text-slate-200">
+                   {course.language}
+                 </span>
+               )}
+               <span className="px-3 py-1 bg-primary-500/20 backdrop-blur-md border border-primary-500/30 rounded-full text-xs font-bold uppercase tracking-wider text-primary-200">
+                 Bestseller
+               </span>
+             </div>
+             
+             <h1 className="text-3xl md:text-5xl font-extrabold mb-4 leading-tight">
+               {course?.name}
+             </h1>
+             <p className="text-lg md:text-xl text-slate-300 mb-6 max-w-3xl line-clamp-3">
+               {course?.description}
+             </p>
+             
+             <div className="flex flex-wrap items-center gap-6 text-sm text-slate-300 font-medium">
+                <div className="flex items-center gap-2">
+                  <div className="flex -space-x-1">
+                    <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                  </div>
+                  <span className="text-white font-bold">{course?.ratingsSummary ? Number(course.ratingsSummary.averageRating).toFixed(1) : '4.8'}</span>
+                  <span>({course?.ratingsSummary?.totalRatings || '1,234'} ratings)</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                  <span>2,300 students</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                   <span className="text-slate-400">Created by</span>
+                   <span className="text-primary-300 font-bold underline decoration-primary-500/50 underline-offset-4">
+                     {course?.instructor?.firstName} {course?.instructor?.lastName}
+                   </span>
+                </div>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-10 relative">
+        
+        {/* Main Content Area */}
+        <div className="w-full lg:w-2/3 space-y-12">
+           
+           {/* What you'll learn */}
+           <section className="glass-card p-8">
+             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">What you'll learn</h2>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               {[
+                 "Build modern, robust, and scalable applications",
+                 "Master the fundamental concepts behind the technologies",
+                 "Deploy your applications to production environments",
+                 "Learn best practices from industry experts"
+               ].map((item, i) => (
+                 <div key={i} className="flex items-start gap-3">
+                   <svg className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                   <span className="text-slate-700 dark:text-slate-300">{item}</span>
+                 </div>
+               ))}
+             </div>
+           </section>
+
+           {/* Course Content / Curriculum */}
+           <section>
+             <div className="flex items-end justify-between mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Course Content</h2>
+                <p className="text-slate-500 font-medium">{lectures?.length || 0} lectures</p>
+             </div>
+             
+             <div className="glass-card shadow-sm border border-slate-200 dark:border-dark-800 overflow-hidden">
+               {lectures?.length > 0 ? (
+                 <ul className="divide-y divide-slate-100 dark:divide-dark-800">
+                   {lectures.map((l, index) => (
+                     <li key={l._id} className="group hover:bg-slate-50 dark:hover:bg-dark-800/50 transition-colors">
+                       <div className="p-5 flex items-center justify-between">
+                         <div className="flex items-center gap-4">
+                           <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center font-bold text-sm shrink-0">
+                             {index + 1}
+                           </div>
+                           <div>
+                             <h4 className="font-semibold text-slate-900 dark:text-slate-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{l.title}</h4>
+                             <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                               Video Lecture
+                             </p>
+                           </div>
+                         </div>
+                         {l.videoUrl && (
+                           <button
+                             type="button"
+                             onClick={() => navigate(`/student/lecture/${l._id}`, { state: { lecture: l } })}
+                             className="opacity-0 group-hover:opacity-100 px-4 py-2 rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 text-sm font-semibold transition-all transform hover:scale-105"
+                           >
+                             Preview
+                           </button>
+                         )}
+                       </div>
+                     </li>
+                   ))}
+                 </ul>
+               ) : (
+                 <div className="p-10 text-center text-slate-500">
+                   No curriculum has been uploaded for this course yet.
+                 </div>
+               )}
+             </div>
+           </section>
+        </div>
+
+        {/* Sticky Sidebar */}
+        <div className="w-full lg:w-1/3">
+          <div className="sticky top-28 glass-card border-t-4 border-t-primary-500 overflow-hidden shadow-2xl">
+            {/* Mobile-only thumbnail inside card */}
+            {course?.thumbnailUrl && (
+              <div className="md:hidden w-full aspect-video border-b border-slate-200 dark:border-dark-800">
+                <img src={course.thumbnailUrl} alt={course.name} className="w-full h-full object-cover" />
+              </div>
+            )}
+            
+            <div className="p-8">
+              <div className="text-4xl font-black text-slate-900 dark:text-white mb-6">
+                ₹{course?.price}
+              </div>
+              
+              {user?.role === 'teacher' && String(course?.instructor?._id) === String(user?.profileId) ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/teacher/courses/${courseId}/manage`)}
+                  className="w-full py-4 rounded-xl bg-indigo-600 text-white font-bold text-lg tracking-wide hover:bg-indigo-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 mb-4 flex items-center justify-center gap-2"
+                >
+                  Manage Your Course
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleBuy}
+                  disabled={processingPayment}
+                  className="w-full py-4 rounded-xl bg-primary-600 text-white font-bold text-lg tracking-wide hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-500/50 disabled:opacity-70 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 mb-4 flex items-center justify-center gap-2"
+                >
+                  {processingPayment ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      Processing...
+                    </>
+                  ) : (
+                    'Enroll Now'
+                  )}
+                </button>
+              )}
+              
+              <p className="text-center text-xs text-slate-500 mb-8">Secure payment powered by Razorpay. 30-Day Money-Back Guarantee.</p>
+              
+              <div className="space-y-4">
+                <h3 className="font-bold text-slate-900 dark:text-white">This course includes:</h3>
+                <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+                  <li className="flex items-center gap-3">
+                     <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                     {lectures?.length || 0} on-demand video lectures
+                  </li>
+                  <li className="flex items-center gap-3">
+                     <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                     Full lifetime access
+                  </li>
+                  <li className="flex items-center gap-3">
+                     <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                     Access on mobile and TV
+                  </li>
+                  <li className="flex items-center gap-3">
+                     <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                     Certificate of completion
+                  </li>
+                </ul>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-slate-200 dark:border-dark-800 flex justify-between gap-4">
+                <button className="flex-1 py-2 font-semibold text-slate-700 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                  Share
+                </button>
+                <div className="w-px bg-slate-200 dark:bg-dark-800"></div>
+                <button className="flex-1 py-2 font-semibold text-slate-700 dark:text-slate-300 hover:text-pink-600 dark:hover:text-pink-400 transition-colors">
+                  Add to Wishlist
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  );
+};
+
+export default CourseDetailPage;
+
