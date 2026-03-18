@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 5001;
 
 const server = http.createServer(app);
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   // eslint-disable-next-line no-console
   console.log(`LMS backend running on port ${PORT}`);
 });
