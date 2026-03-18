@@ -9,7 +9,8 @@ import {
   wishlistToggleController,
   getWishlistController,
   getTeacherCoursesController,
-  deleteCourseController
+  deleteCourseController,
+  checkEnrollmentController
 } from '../controllers/course.controller.js';
 import { authGuard, isStudent, isTeacher } from '../middlewares/auth.middleware.js';
 import { imageUpload } from '../middlewares/upload.middleware.js';
@@ -22,6 +23,7 @@ router.get('/:courseId', getCourseDetailController);
 router.use(authGuard);
 
 router.get('/student/enrolled/list', isStudent, getStudentEnrolledCoursesController);
+router.get('/student/enrollment-status/:courseId', isStudent, checkEnrollmentController);
 router.post('/student/wishlist-toggle', isStudent, wishlistToggleController);
 router.get('/student/wishlist', isStudent, getWishlistController);
 

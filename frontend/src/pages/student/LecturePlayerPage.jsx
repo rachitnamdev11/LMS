@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   incrementLectureViewApi,
   bookmarkLectureApi,
@@ -22,18 +22,25 @@ const LecturePlayerPage = () => {
   const [doubts, setDoubts] = useState([]);
   const [doubtText, setDoubtText] = useState('');
   const [activeTab, setActiveTab] = useState('tests'); // 'tests' or 'doubts'
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     const init = async () => {
-      incrementLectureViewApi(lectureId);
-      const [bm, t, d] = await Promise.all([
-        getLectureBookmarkApi(lectureId).catch(() => null),
-        getLectureTestsApi(lectureId).catch(() => []),
-        listLectureDoubtsApi(lectureId).catch(() => [])
-      ]);
-      setBookmark(bm);
-      setTests(t || []);
-      setDoubts(d || []);
+      try {
+        incrementLectureViewApi(lectureId);
+        const [bm, t, d] = await Promise.all([
+          getLectureBookmarkApi(lectureId).catch(() => null),
+          getLectureTestsApi(lectureId).catch(() => []),
+          listLectureDoubtsApi(lectureId).catch(() => [])
+        ]);
+        setBookmark(bm);
+        setTests(t || []);
+        setDoubts(d || []);
+      } catch (err) {
+        if (err.response?.status === 403) {
+          setAccessDenied(true);
+        }
+      }
     };
     init();
   }, [lectureId]);
@@ -96,6 +103,40 @@ const LecturePlayerPage = () => {
         </div>
         <p className="text-lg font-medium text-slate-900 dark:text-white">Lecture data missing</p>
         <p className="text-slate-500">Please navigate from the course page.</p>
+      </div>
+    );
+  }
+
+  // Access denied screen
+  if (accessDenied) {
+    const courseId = lecture?.course;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[500px] text-center px-4 animate-fade-in">
+        <div className="w-24 h-24 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-6">
+          <svg className="w-12 h-12 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-3">Access Denied</h2>
+        <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-lg">
+          You haven't enrolled in this course yet. Please purchase the course to watch this lecture.
+        </p>
+        {courseId ? (
+          <Link
+            to={`/student/course/${courseId}`}
+            className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-primary-600 text-white font-bold text-lg hover:bg-primary-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+            Enroll in this Course
+          </Link>
+        ) : (
+          <Link
+            to="/courses"
+            className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-primary-600 text-white font-bold text-lg hover:bg-primary-700 transition-all shadow-lg"
+          >
+            Browse Courses
+          </Link>
+        )}
       </div>
     );
   }

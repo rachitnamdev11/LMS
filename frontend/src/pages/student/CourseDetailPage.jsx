@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getCourseDetailApi } from '../../services/courseApi.js';
+import { getCourseDetailApi, checkEnrollmentApi } from '../../services/courseApi.js';
 import { createEnrollmentOrderApi, verifyPaymentApi } from '../../services/paymentApi.js';
 import { useAuth } from '../../hooks/useAuth.js';
 
@@ -12,6 +12,9 @@ const CourseDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const [enrollmentChecked, setEnrollmentChecked] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -26,6 +29,18 @@ const CourseDetailPage = () => {
     };
     load();
   }, [courseId]);
+
+  // Check enrollment status separately (only for logged-in students)
+  useEffect(() => {
+    if (!user || user.role !== 'student') {
+      setEnrollmentChecked(true);
+      return;
+    }
+    checkEnrollmentApi(courseId)
+      .then((res) => setIsEnrolled(res?.enrolled === true))
+      .catch(() => setIsEnrolled(false))
+      .finally(() => setEnrollmentChecked(true));
+  }, [courseId, user]);
 
   const handleBuy = async () => {
     setProcessingPayment(true);
@@ -70,11 +85,15 @@ const CourseDetailPage = () => {
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature
             });
-            // After verification, navigate to dashboard.
-            navigate('/student/dashboard');
+            // Mark as enrolled locally and show success banner
+            setIsEnrolled(true);
+            setEnrollmentChecked(true);
+            setPaymentSuccess(true);
+            setProcessingPayment(false);
           } catch (err) {
             console.error(err);
             alert("Payment verification failed. Please contact support.");
+            setProcessingPayment(false);
           }
         },
         modal: {
@@ -209,35 +228,46 @@ const CourseDetailPage = () => {
              
              <div className="glass-card shadow-sm border border-slate-200 dark:border-dark-800 overflow-hidden">
                {lectures?.length > 0 ? (
-                 <ul className="divide-y divide-slate-100 dark:divide-dark-800">
-                   {lectures.map((l, index) => (
-                     <li key={l._id} className="group hover:bg-slate-50 dark:hover:bg-dark-800/50 transition-colors">
-                       <div className="p-5 flex items-center justify-between">
-                         <div className="flex items-center gap-4">
-                           <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center font-bold text-sm shrink-0">
-                             {index + 1}
+                 (user?.role === 'teacher' && String(course?.instructor?._id) === String(user?.profileId)) || isEnrolled ? (
+                   <ul className="divide-y divide-slate-100 dark:divide-dark-800">
+                     {lectures.map((l, index) => (
+                       <li key={l._id} className="group hover:bg-slate-50 dark:hover:bg-dark-800/50 transition-colors">
+                         <div className="p-5 flex items-center justify-between">
+                           <div className="flex items-center gap-4">
+                             <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center font-bold text-sm shrink-0">
+                               {index + 1}
+                             </div>
+                             <div>
+                               <h4 className="font-semibold text-slate-900 dark:text-slate-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{l.title}</h4>
+                               <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                 Video Lecture
+                               </p>
+                             </div>
                            </div>
-                           <div>
-                             <h4 className="font-semibold text-slate-900 dark:text-slate-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{l.title}</h4>
-                             <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                               Video Lecture
-                             </p>
-                           </div>
+                           {l.videoUrl && (
+                             <button
+                               type="button"
+                               onClick={() => navigate(`/student/lecture/${l._id}`, { state: { lecture: l } })}
+                               className="opacity-0 group-hover:opacity-100 px-4 py-2 rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 text-sm font-semibold transition-all transform hover:scale-105"
+                             >
+                               Preview
+                             </button>
+                           )}
                          </div>
-                         {l.videoUrl && (
-                           <button
-                             type="button"
-                             onClick={() => navigate(`/student/lecture/${l._id}`, { state: { lecture: l } })}
-                             className="opacity-0 group-hover:opacity-100 px-4 py-2 rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 text-sm font-semibold transition-all transform hover:scale-105"
-                           >
-                             Preview
-                           </button>
-                         )}
-                       </div>
-                     </li>
-                   ))}
-                 </ul>
+                       </li>
+                     ))}
+                   </ul>
+                 ) : (
+                   <div className="p-10 text-center relative pointer-events-none">
+                     <div className="absolute inset-0 bg-slate-50/50 dark:bg-dark-900/50 backdrop-blur-[2px]"></div>
+                     <div className="w-16 h-16 bg-slate-200 dark:bg-dark-800 text-slate-500 rounded-full flex items-center justify-center mb-4 mx-auto relative z-10 shadow-inner">
+                       <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                     </div>
+                     <h3 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-2 relative z-10">Curriculum Locked</h3>
+                     <p className="text-slate-500 max-w-sm mx-auto relative z-10">Enroll in this course to unlock access to the premium video lectures and resources.</p>
+                   </div>
+                 )
                ) : (
                  <div className="p-10 text-center text-slate-500">
                    No curriculum has been uploaded for this course yet.
@@ -249,44 +279,74 @@ const CourseDetailPage = () => {
 
         {/* Sticky Sidebar */}
         <div className="w-full lg:w-1/3">
-          <div className="sticky top-28 glass-card border-t-4 border-t-primary-500 overflow-hidden shadow-2xl">
-            {/* Mobile-only thumbnail inside card */}
-            {course?.thumbnailUrl && (
-              <div className="md:hidden w-full aspect-video border-b border-slate-200 dark:border-dark-800">
-                <img src={course.thumbnailUrl} alt={course.name} className="w-full h-full object-cover" />
-              </div>
-            )}
-            
-            <div className="p-8">
-              <div className="text-4xl font-black text-slate-900 dark:text-white mb-6">
-                ₹{course?.price}
-              </div>
-              
-              {user?.role === 'teacher' && String(course?.instructor?._id) === String(user?.profileId) ? (
-                <button
-                  type="button"
-                  onClick={() => navigate(`/teacher/courses/${courseId}/manage`)}
-                  className="w-full py-4 rounded-xl bg-indigo-600 text-white font-bold text-lg tracking-wide hover:bg-indigo-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 mb-4 flex items-center justify-center gap-2"
-                >
-                  Manage Your Course
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleBuy}
-                  disabled={processingPayment}
-                  className="w-full py-4 rounded-xl bg-primary-600 text-white font-bold text-lg tracking-wide hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-500/50 disabled:opacity-70 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 mb-4 flex items-center justify-center gap-2"
-                >
-                  {processingPayment ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                      Processing...
-                    </>
-                  ) : (
-                    'Enroll Now'
-                  )}
-                </button>
+            {/* ── Sidebar purchase/access card ── */}
+            <div className="sticky top-28 glass-card border-t-4 border-t-primary-500 overflow-hidden shadow-2xl">
+              {/* Mobile-only thumbnail inside card */}
+              {course?.thumbnailUrl && (
+                <div className="md:hidden w-full aspect-video border-b border-slate-200 dark:border-dark-800">
+                  <img src={course.thumbnailUrl} alt={course.name} className="w-full h-full object-cover" />
+                </div>
               )}
+
+              <div className="p-8">
+                {/* Payment success banner */}
+                {paymentSuccess && (
+                  <div className="mb-5 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-xl px-4 py-3">
+                    <svg className="w-5 h-5 shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <p className="text-sm font-semibold">Payment successful! You're now enrolled.</p>
+                  </div>
+                )}
+
+                <div className="text-4xl font-black text-slate-900 dark:text-white mb-6">
+                  ₹{course?.price}
+                </div>
+
+                {/* Teacher who owns the course */}
+                {user?.role === 'teacher' && String(course?.instructor?._id) === String(user?.profileId) ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/teacher/courses/${courseId}/manage`)}
+                    className="w-full py-4 rounded-xl bg-indigo-600 text-white font-bold text-lg tracking-wide hover:bg-indigo-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 mb-4 flex items-center justify-center gap-2"
+                  >
+                    Manage Your Course
+                  </button>
+
+                /* Student: enrollment status still loading */
+                ) : !enrollmentChecked ? (
+                  <div className="w-full py-4 rounded-xl bg-slate-100 dark:bg-dark-800 animate-pulse mb-4 h-14" />
+
+                /* Student: already enrolled → Go to Course */
+                ) : isEnrolled ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/student/dashboard')}
+                    className="w-full py-4 rounded-xl bg-emerald-600 text-white font-bold text-lg tracking-wide hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-500/50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 mb-4 flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Go to Course
+                  </button>
+
+                /* Not enrolled → Enroll Now / Buy */
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleBuy}
+                    disabled={processingPayment}
+                    className="w-full py-4 rounded-xl bg-primary-600 text-white font-bold text-lg tracking-wide hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-500/50 disabled:opacity-70 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 mb-4 flex items-center justify-center gap-2"
+                  >
+                    {processingPayment ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                        Enroll Now — ₹{course?.price}
+                      </>
+                    )}
+                  </button>
+                )}
               
               <p className="text-center text-xs text-slate-500 mb-8">Secure payment powered by Razorpay. 30-Day Money-Back Guarantee.</p>
               

@@ -15,3 +15,7 @@ export const getWishlistApi = () =>
 export const toggleWishlistApi = (courseId) =>
   api.post('/courses/student/wishlist-toggle', { courseId }).then((r) => r.data.data);
 
+export const checkEnrollmentApi = (courseId) =>
+  api.get(`/courses/student/enrollment-status/${courseId}`).then((r) => r.data.data);
+
+

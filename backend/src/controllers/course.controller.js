@@ -142,3 +142,19 @@ export const deleteCourseController = async (req, res, next) => {
   }
 };
 
+export const checkEnrollmentController = async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+    const student = await Student.findOne({ user: req.user.id });
+    if (!student) {
+      return successResponse(res, { enrolled: false }, 'Enrollment status fetched');
+    }
+    const enrolled = student.enrolledCourses.some(
+      (id) => id.toString() === courseId.toString()
+    );
+    return successResponse(res, { enrolled }, 'Enrollment status fetched');
+  } catch (err) {
+    return next(err);
+  }
+};
+

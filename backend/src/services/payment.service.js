@@ -8,10 +8,17 @@ import { enrollStudentInCourse } from './course.service.js';
 
 export const createEnrollmentOrder = async ({ userId, course, amount }) => {
   const student = await Student.findOne({ user: userId });
+  if (!student) {
+    throw Object.assign(new Error('Student profile not found'), { status: 404 });
+  }
+
+  // Razorpay receipt IDs must be ≤ 40 chars
+  const receipt = `enrl_${Date.now()}`;
+
   const options = {
     amount: Math.round(amount * 100),
     currency: env.razorpay.currency,
-    receipt: `enroll_${course}_${student._id}_${Date.now()}`
+    receipt
   };
   const order = await razorpayInstance.orders.create(options);
   await Payment.create({
@@ -28,10 +35,14 @@ export const createEnrollmentOrder = async ({ userId, course, amount }) => {
 
 export const createInstructorCourseFeeOrder = async ({ userId, amount }) => {
   const teacher = await Teacher.findOne({ user: userId });
+  if (!teacher) {
+    throw Object.assign(new Error('Teacher profile not found'), { status: 404 });
+  }
+
   const options = {
     amount: Math.round(amount * 100),
     currency: env.razorpay.currency,
-    receipt: `teacher_fee_${teacher._id}_${Date.now()}`
+    receipt: `fee_${Date.now()}` // ≤ 40 chars
   };
   const order = await razorpayInstance.orders.create(options);
   await Payment.create({

@@ -89,7 +89,7 @@ export const publishCourse = async ({ courseId, instructorId }) => {
 
 export const enrollStudentInCourse = async ({ studentId, courseId }) => {
   const course = await Course.findById(courseId);
-  if (!course || !course.isPublished || course.isRemovedByAdmin) {
+  if (!course || course.isRemovedByAdmin) {
     throw Object.assign(new Error('Course not available'), { status: 400 });
   }
 
