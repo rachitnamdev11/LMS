@@ -40,8 +40,8 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json({ limit: '20mb' }));
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ extended: true, limit: '500mb' }));
 
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));

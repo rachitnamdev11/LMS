@@ -10,7 +10,7 @@ const router = Router();
 
 router.use(authGuard);
 
-router.post('/course/order', isStudent, createCourseEnrollmentOrderController);
+router.post('/course/order', createCourseEnrollmentOrderController);
 router.post('/instructor-fee/order', isTeacher, createInstructorCourseFeeOrderController);
 router.post('/verify', verifyPaymentController);
 

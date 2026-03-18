@@ -7,9 +7,21 @@ import Teacher from '../models/Teacher.model.js';
 import { enrollStudentInCourse } from './course.service.js';
 
 export const createEnrollmentOrder = async ({ userId, course, amount }) => {
-  const student = await Student.findOne({ user: userId });
+  let student = await Student.findOne({ user: userId });
   if (!student) {
-    throw Object.assign(new Error('Student profile not found'), { status: 404 });
+    // If the user is a teacher, generate a student persona for them on the fly
+    const teacher = await Teacher.findOne({ user: userId });
+    if (teacher) {
+      student = await Student.create({
+        user: userId,
+        studentId: `ST-${Date.now()}`,
+        firstName: teacher.firstName,
+        lastName: teacher.lastName,
+        email: teacher.email
+      });
+    } else {
+      throw Object.assign(new Error('Student profile not found'), { status: 404 });
+    }
   }
 
   // Razorpay receipt IDs must be ≤ 40 chars

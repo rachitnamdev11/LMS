@@ -36,14 +36,21 @@ export const updateLectureController = async (req, res, next) => {
   try {
     const { lectureId } = req.params;
     const payload = req.body;
+    
+    // Authorization check to ensure the teacher actually owns this course
+    const lectureCheck = await Lecture.findById(lectureId).populate('course');
+    if (!lectureCheck) {
+      throw Object.assign(new Error('Lecture not found'), { status: 404 });
+    }
+    if (lectureCheck.course.instructor.toString() !== req.user.id) {
+      throw Object.assign(new Error('Unauthorized to modify this lecture'), { status: 403 });
+    }
+
     if (req.file?.path) {
       payload.videoUrl = req.file.path;
       payload.videoPublicId = req.file.filename;
     }
     const lecture = await Lecture.findByIdAndUpdate(lectureId, payload, { new: true });
-    if (!lecture) {
-      throw Object.assign(new Error('Lecture not found'), { status: 404 });
-    }
     return successResponse(res, lecture, 'Lecture updated');
   } catch (err) {
     return next(err);
@@ -53,7 +60,21 @@ export const updateLectureController = async (req, res, next) => {
 export const deleteLectureController = async (req, res, next) => {
   try {
     const { lectureId } = req.params;
+    
+    // Authorization check to ensure the teacher actually owns this course
+    const lectureCheck = await Lecture.findById(lectureId).populate('course');
+    if (!lectureCheck) {
+      throw Object.assign(new Error('Lecture not found'), { status: 404 });
+    }
+    if (lectureCheck.course.instructor.toString() !== req.user.id) {
+      throw Object.assign(new Error('Unauthorized to delete this lecture'), { status: 403 });
+    }
+
     await Lecture.findByIdAndDelete(lectureId);
+    
+    // Automatically decrement the counter in the parent course
+    await Course.findByIdAndUpdate(lectureCheck.course._id, { $inc: { numberOfLectures: -1 } });
+
     return successResponse(res, {}, 'Lecture deleted');
   } catch (err) {
     return next(err);

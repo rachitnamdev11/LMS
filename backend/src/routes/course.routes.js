@@ -22,8 +22,8 @@ router.get('/:courseId', getCourseDetailController);
 
 router.use(authGuard);
 
-router.get('/student/enrolled/list', isStudent, getStudentEnrolledCoursesController);
-router.get('/student/enrollment-status/:courseId', isStudent, checkEnrollmentController);
+router.get('/student/enrolled/list', getStudentEnrolledCoursesController);
+router.get('/student/enrollment-status/:courseId', checkEnrollmentController);
 router.post('/student/wishlist-toggle', isStudent, wishlistToggleController);
 router.get('/student/wishlist', isStudent, getWishlistController);
 

@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL
+  baseURL: import.meta.env.VITE_API_BASE_URL,
+  timeout: 600000 // 10 minutes timeout for large video uploads
 });
 
 api.interceptors.request.use((config) => {

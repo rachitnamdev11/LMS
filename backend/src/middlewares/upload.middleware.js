@@ -15,7 +15,8 @@ const videoStorage = new CloudinaryStorage({
   params: {
     folder: 'lms/videos',
     resource_type: 'video',
-    allowed_formats: ['mp4', 'mkv', 'mov']
+    allowed_formats: ['mp4', 'mkv', 'mov'],
+    chunk_size: 20000000 // 20MB chunk size for much faster video uploads
   }
 });
 

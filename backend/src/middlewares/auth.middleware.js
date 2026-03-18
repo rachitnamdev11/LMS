@@ -46,8 +46,8 @@ export const isEnrolledInCourse = async (req, res, next) => {
   try {
     const { role, id: userId } = req.user;
 
-    // Teachers and admins have unrestricted access
-    if (role === ROLES.TEACHER || role === ROLES.ADMIN) {
+    // Admins have unrestricted access
+    if (role === ROLES.ADMIN) {
       return next();
     }
 
@@ -57,9 +57,22 @@ export const isEnrolledInCourse = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Lecture ID is required' });
     }
 
-    const lecture = await Lecture.findById(lectureId).select('course');
+    const lecture = await Lecture.findById(lectureId).populate('course');
     if (!lecture) {
       return res.status(404).json({ success: false, message: 'Lecture not found' });
+    }
+
+    // If teacher, check if they own the course
+    if (role === ROLES.TEACHER) {
+      const teacherProfile = await User.findById(userId); // Use user, or Teacher
+      // The course.instructor is stored as Teacher ObjectId. We check the user object string vs the course's instructor.
+      // Easiest is to lookup the Teacher doc for this userId
+      const { fetchTeacher } = await import('../models/Teacher.model.js').then(m => ({ fetchTeacher: m.default }));
+      const tDoc = await fetchTeacher.findOne({ user: userId });
+      if (tDoc && lecture.course.instructor && tDoc._id.toString() === lecture.course.instructor.toString()) {
+        return next();
+      }
+      // If not the owner, they must act as a student below
     }
 
     const student = await Student.findOne({ user: userId }).select('enrolledCourses');
@@ -68,7 +81,7 @@ export const isEnrolledInCourse = async (req, res, next) => {
     }
 
     const isEnrolled = student.enrolledCourses.some(
-      (courseId) => courseId.toString() === lecture.course.toString()
+      (courseId) => courseId.toString() === lecture.course._id.toString()
     );
 
     if (!isEnrolled) {

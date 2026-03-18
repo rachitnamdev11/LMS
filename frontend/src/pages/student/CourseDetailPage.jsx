@@ -15,6 +15,7 @@ const CourseDetailPage = () => {
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [enrollmentChecked, setEnrollmentChecked] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [previewVideoUrl, setPreviewVideoUrl] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -30,9 +31,9 @@ const CourseDetailPage = () => {
     load();
   }, [courseId]);
 
-  // Check enrollment status separately (only for logged-in students)
+  // Check enrollment status separately (only for logged-in users)
   useEffect(() => {
-    if (!user || user.role !== 'student') {
+    if (!user) {
       setEnrollmentChecked(true);
       return;
     }
@@ -248,8 +249,8 @@ const CourseDetailPage = () => {
                            {l.videoUrl && (
                              <button
                                type="button"
-                               onClick={() => navigate(`/student/lecture/${l._id}`, { state: { lecture: l } })}
-                               className="opacity-0 group-hover:opacity-100 px-4 py-2 rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 text-sm font-semibold transition-all transform hover:scale-105"
+                               onClick={() => setPreviewVideoUrl(l.videoUrl)}
+                               className="opacity-0 group-hover:opacity-100 px-4 py-2 rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 text-sm font-semibold transition-all transform hover:scale-105 shadow-sm"
                              >
                                Preview
                              </button>
@@ -297,9 +298,12 @@ const CourseDetailPage = () => {
                   </div>
                 )}
 
-                <div className="text-4xl font-black text-slate-900 dark:text-white mb-6">
-                  ₹{course?.price}
-                </div>
+                {/* Hide price if user is enrolled or is the teacher */}
+                {!(isEnrolled || (user?.role === 'teacher' && String(course?.instructor?._id) === String(user?.profileId))) && (
+                  <div className="text-4xl font-black text-slate-900 dark:text-white mb-6">
+                    ₹{course?.price}
+                  </div>
+                )}
 
                 {/* Teacher who owns the course */}
                 {user?.role === 'teacher' && String(course?.instructor?._id) === String(user?.profileId) ? (
@@ -317,14 +321,20 @@ const CourseDetailPage = () => {
 
                 /* Student: already enrolled → Go to Course */
                 ) : isEnrolled ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/student/dashboard')}
-                    className="w-full py-4 rounded-xl bg-emerald-600 text-white font-bold text-lg tracking-wide hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-500/50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 mb-4 flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Go to Course
-                  </button>
+                  user?.role === 'student' ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/student/dashboard')}
+                      className="w-full py-4 rounded-xl bg-emerald-600 text-white font-bold text-lg tracking-wide hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-500/50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 mb-4 flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      Go to Course
+                    </button>
+                  ) : (
+                    <div className="w-full py-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold text-center tracking-wide mb-4 border border-emerald-200 dark:border-emerald-800">
+                      Video Unlocked
+                    </div>
+                  )
 
                 /* Not enrolled → Enroll Now / Buy */
                 ) : (
@@ -348,7 +358,9 @@ const CourseDetailPage = () => {
                   </button>
                 )}
               
-              <p className="text-center text-xs text-slate-500 mb-8">Secure payment powered by Razorpay. 30-Day Money-Back Guarantee.</p>
+              {!(isEnrolled || (user?.role === 'teacher' && String(course?.instructor?._id) === String(user?.profileId))) && (
+                <p className="text-center text-xs text-slate-500 mb-8 mt-4">Secure payment powered by Razorpay. 30-Day Money-Back Guarantee.</p>
+              )}
               
               <div className="space-y-4">
                 <h3 className="font-bold text-slate-900 dark:text-white">This course includes:</h3>
@@ -385,6 +397,29 @@ const CourseDetailPage = () => {
           </div>
         </div>
       </div>
+      
+      {/* Video Preview Modal */}
+      {previewVideoUrl && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-8 animate-fade-in" onClick={() => setPreviewVideoUrl(null)}>
+          <div className="relative w-full max-w-5xl bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-700" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setPreviewVideoUrl(null)}
+              className="absolute top-4 right-4 text-white hover:text-red-500 z-10 transition-colors bg-black/50 hover:bg-black/80 p-2 rounded-full backdrop-blur-md"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <div className="aspect-video w-full bg-black">
+              <video
+                src={previewVideoUrl}
+                controls
+                autoPlay
+                className="w-full h-full object-contain"
+                controlsList="nodownload"
+              ></video>
+            </div>
+          </div>
+        </div>
+      )}
       
     </div>
   );
