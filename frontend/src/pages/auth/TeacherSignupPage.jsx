@@ -26,6 +26,27 @@ const TeacherSignupPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Strict validation
+    const requiredFields = [
+      { key: 'firstName', label: 'First Name' },
+      { key: 'lastName', label: 'Last Name' },
+      { key: 'email', label: 'Email Address' },
+      { key: 'password', label: 'Password' },
+      { key: 'age', label: 'Age' },
+      { key: 'gender', label: 'Gender' },
+      { key: 'address', label: 'Address' },
+      { key: 'qualifications', label: 'Qualifications' },
+      { key: 'experience', label: 'Experience' }
+    ];
+
+    for (const field of requiredFields) {
+      if (!form[field.key] || form[field.key].toString().trim() === '') {
+        setError(`Please fill out the ${field.label} field. All fields are mandatory.`);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const profile = {
@@ -100,12 +121,12 @@ const TeacherSignupPage = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelClass}>Age</label>
-                <input name="age" type="number" min="18" className={inputClass} placeholder="e.g. 30" value={form.age} onChange={handleChange} />
+                <input name="age" type="number" min="18" className={inputClass} placeholder="e.g. 30" value={form.age} onChange={handleChange} required />
               </div>
               <div>
                 <label className={labelClass}>Gender</label>
                 <div className="relative">
-                  <select name="gender" className={inputClass + ' appearance-none pr-10'} value={form.gender} onChange={handleChange}>
+                  <select name="gender" className={inputClass + ' appearance-none pr-10'} value={form.gender} onChange={handleChange} required>
                     <option value="">Select gender</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
@@ -121,19 +142,19 @@ const TeacherSignupPage = () => {
             {/* Address */}
             <div>
               <label className={labelClass}>Address</label>
-              <input name="address" className={inputClass} placeholder="City, State / Country" value={form.address} onChange={handleChange} />
+              <input name="address" className={inputClass} placeholder="City, State / Country" value={form.address} onChange={handleChange} required />
             </div>
 
             {/* Qualifications */}
             <div>
               <label className={labelClass}>Qualifications</label>
-              <input name="qualifications" className={inputClass} placeholder="e.g. M.Sc. Computer Science, AWS Certified" value={form.qualifications} onChange={handleChange} />
+              <input name="qualifications" className={inputClass} placeholder="e.g. M.Sc. Computer Science, AWS Certified" value={form.qualifications} onChange={handleChange} required />
             </div>
 
             {/* Experience */}
             <div>
               <label className={labelClass}>Teaching / Industry Experience</label>
-              <input name="experience" className={inputClass} placeholder="e.g. 5 years in software development" value={form.experience} onChange={handleChange} />
+              <input name="experience" className={inputClass} placeholder="e.g. 5 years in software development" value={form.experience} onChange={handleChange} required />
             </div>
 
             <button

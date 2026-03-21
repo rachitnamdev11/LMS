@@ -25,6 +25,26 @@ const StudentSignupPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Strict validation
+    const requiredFields = [
+      { key: 'firstName', label: 'First Name' },
+      { key: 'lastName', label: 'Last Name' },
+      { key: 'email', label: 'Email Address' },
+      { key: 'password', label: 'Password' },
+      { key: 'phoneNumber', label: 'Phone Number' },
+      { key: 'dateOfBirth', label: 'Date of Birth' },
+      { key: 'gender', label: 'Gender' },
+      { key: 'address', label: 'Address' }
+    ];
+
+    for (const field of requiredFields) {
+      if (!form[field.key] || form[field.key].toString().trim() === '') {
+        setError(`Please fill out the ${field.label} field. All fields are mandatory.`);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const profile = {
@@ -97,11 +117,11 @@ const StudentSignupPage = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelClass}>Phone Number</label>
-                <input name="phoneNumber" type="tel" className={inputClass} placeholder="+91 98765 43210" value={form.phoneNumber} onChange={handleChange} />
+                <input name="phoneNumber" type="tel" className={inputClass} placeholder="+91 98765 43210" value={form.phoneNumber} onChange={handleChange} required />
               </div>
               <div>
                 <label className={labelClass}>Date of Birth</label>
-                <input name="dateOfBirth" type="date" className={inputClass} value={form.dateOfBirth} onChange={handleChange} />
+                <input name="dateOfBirth" type="date" className={inputClass} value={form.dateOfBirth} onChange={handleChange} required />
               </div>
             </div>
 
@@ -110,7 +130,7 @@ const StudentSignupPage = () => {
               <div>
                 <label className={labelClass}>Gender</label>
                 <div className="relative">
-                  <select name="gender" className={inputClass + ' appearance-none pr-10'} value={form.gender} onChange={handleChange}>
+                  <select name="gender" className={inputClass + ' appearance-none pr-10'} value={form.gender} onChange={handleChange} required>
                     <option value="">Select gender</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
@@ -123,7 +143,7 @@ const StudentSignupPage = () => {
               </div>
               <div>
                 <label className={labelClass}>Address</label>
-                <input name="address" className={inputClass} placeholder="City, State" value={form.address} onChange={handleChange} />
+                <input name="address" className={inputClass} placeholder="City, State" value={form.address} onChange={handleChange} required />
               </div>
             </div>
 
