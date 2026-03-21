@@ -1,9 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
+import { getInstructorDoubtsApi, replyDoubtApi } from '../../services/doubtApi.js';
 
 const TeacherDashboard = () => {
   const { user } = useAuth();
+  const [doubts, setDoubts] = useState([]);
+  const [replyText, setReplyText] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState({});
+
+  useEffect(() => {
+    getInstructorDoubtsApi().then(setDoubts).catch(console.error);
+  }, []);
+
+  const pendingDoubtsCount = doubts.filter(d => d.replies.length === 0).length;
+
+  const handleReply = async (doubtId) => {
+    if (!replyText[doubtId]?.trim()) return;
+    setIsSubmitting(prev => ({ ...prev, [doubtId]: true }));
+    try {
+      const updatedDoubt = await replyDoubtApi(doubtId, replyText[doubtId]);
+      setDoubts(prev => prev.map(d => d._id === doubtId ? updatedDoubt : d));
+      setReplyText(prev => ({ ...prev, [doubtId]: '' }));
+    } catch (err) {
+      console.error('Failed to reply:', err);
+    } finally {
+      setIsSubmitting(prev => ({ ...prev, [doubtId]: false }));
+    }
+  };
+
+  // Group doubts by lecture
+  const doubtsByLecture = doubts.reduce((acc, d) => {
+    if (!d.lecture || !d.course) return acc;
+    const key = d.lecture._id;
+    if (!acc[key]) {
+      acc[key] = {
+        courseTitle: d.course.title,
+        lectureTitle: d.lecture.title,
+        lectureOrder: d.lecture.order,
+        doubts: []
+      };
+    }
+    acc[key].doubts.push(d);
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-8 animate-fade-in pb-10">
@@ -19,7 +59,7 @@ const TeacherDashboard = () => {
         </div>
       </div>
 
-      {/* Stats Overview (Placeholders) */}
+      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="glass-card p-6 flex items-center gap-5">
           <div className="w-14 h-14 rounded-2xl bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
@@ -47,7 +87,7 @@ const TeacherDashboard = () => {
           </div>
           <div>
              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Pending Doubts</p>
-             <p className="text-2xl font-bold text-slate-900 dark:text-white">Check</p>
+             <p className="text-2xl font-bold text-slate-900 dark:text-white">{pendingDoubtsCount}</p>
           </div>
         </div>
       </div>
@@ -76,13 +116,22 @@ const TeacherDashboard = () => {
             <p className="text-slate-500 text-sm">Coming soon. Check your revenue and student engagement.</p>
           </div>
           
-          <div className="group glass-card p-8 flex flex-col items-center justify-center text-center opacity-70 cursor-not-allowed">
-            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-dark-800 text-slate-400 flex items-center justify-center mb-4">
+          <Link
+            to="/teacher/doubts"
+            className="group glass-card p-8 flex flex-col items-center justify-center text-center hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors border border-transparent hover:border-amber-200 dark:hover:border-amber-800"
+          >
+            <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" /></svg>
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Student Doubts</h3>
-            <p className="text-slate-500 text-sm">Coming soon. Respond to student questions directly.</p>
-          </div>
+            <p className="text-slate-500 text-sm">Respond to student questions directly from the new Q&A hub.</p>
+            {pendingDoubtsCount > 0 && (
+              <span className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400">
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                {pendingDoubtsCount} Pending
+              </span>
+            )}
+          </Link>
         </div>
       </section>
 
@@ -91,4 +140,3 @@ const TeacherDashboard = () => {
 };
 
 export default TeacherDashboard;
-

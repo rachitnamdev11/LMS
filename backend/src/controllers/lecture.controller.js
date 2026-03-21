@@ -160,3 +160,47 @@ export const getLectureBookmarkController = async (req, res, next) => {
   }
 };
 
+export const addOrUpdateLectureNotesController = async (req, res, next) => {
+  try {
+    const { lectureId } = req.params;
+
+    // Authorization check — teacher must own the course
+    const lectureCheck = await Lecture.findById(lectureId).populate('course');
+    if (!lectureCheck) {
+      throw Object.assign(new Error('Lecture not found'), { status: 404 });
+    }
+    if (lectureCheck.course.instructor.toString() !== req.user.id.toString()) {
+      throw Object.assign(new Error('Unauthorized to modify this lecture'), { status: 403 });
+    }
+
+    if (!req.file) {
+      throw Object.assign(new Error('No PDF file provided'), { status: 400 });
+    }
+
+    const lecture = await Lecture.findByIdAndUpdate(
+      lectureId,
+      {
+        notesUrl: req.file.path,
+        notesPublicId: req.file.filename
+      },
+      { new: true }
+    );
+    return successResponse(res, { notesUrl: lecture.notesUrl, notesPublicId: lecture.notesPublicId }, 'Notes PDF uploaded');
+  } catch (err) {
+    return next(err);
+  }
+};
+
+export const getLectureNotesController = async (req, res, next) => {
+  try {
+    const { lectureId } = req.params;
+    const lecture = await Lecture.findById(lectureId).select('notesUrl notesPublicId');
+    if (!lecture) {
+      throw Object.assign(new Error('Lecture not found'), { status: 404 });
+    }
+    return successResponse(res, { notesUrl: lecture.notesUrl || '', notesPublicId: lecture.notesPublicId || '' }, 'Notes fetched');
+  } catch (err) {
+    return next(err);
+  }
+};
+

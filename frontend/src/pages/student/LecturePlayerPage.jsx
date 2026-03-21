@@ -4,10 +4,12 @@ import {
   incrementLectureViewApi,
   bookmarkLectureApi,
   getLectureBookmarkApi,
-  completeLectureApi
+  completeLectureApi,
+  getLectureNotesApi
 } from '../../services/lectureApi.js';
 import { getLectureTestsApi, submitTestApi } from '../../services/testApi.js';
 import { createDoubtApi, listLectureDoubtsApi } from '../../services/doubtApi.js';
+import PdfViewer from './PdfViewer.jsx';
 
 const LecturePlayerPage = () => {
   const { lectureId } = useParams();
@@ -21,8 +23,10 @@ const LecturePlayerPage = () => {
   const [result, setResult] = useState(null);
   const [doubts, setDoubts] = useState([]);
   const [doubtText, setDoubtText] = useState('');
-  const [activeTab, setActiveTab] = useState('tests'); // 'tests' or 'doubts'
+  const [activeTab, setActiveTab] = useState('tests'); // 'tests', 'doubts', or 'notes'
   const [accessDenied, setAccessDenied] = useState(false);
+  const [lectureNotes, setLectureNotes] = useState(null);  // null = not yet fetched
+  const [notesFetching, setNotesFetching] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -45,6 +49,29 @@ const LecturePlayerPage = () => {
     init();
   }, [lectureId]);
 
+  // Fetch notes when Notes tab is first activated
+  useEffect(() => {
+    if (activeTab === 'notes' && lectureNotes === null && !notesFetching) {
+      setNotesFetching(true);
+      getLectureNotesApi(lectureId)
+        .then((data) => setLectureNotes(data?.notesUrl ?? ''))
+        .catch(() => setLectureNotes(''))
+        .finally(() => setNotesFetching(false));
+    }
+  }, [activeTab, lectureId, lectureNotes, notesFetching]);
+
+  // Block Ctrl/Cmd + C/P/S while Notes tab is active
+  useEffect(() => {
+    if (activeTab !== 'notes') return;
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && ['c', 'p', 's', 'a'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab]);
+
   useEffect(() => {
     if (bookmark?.lastWatchedSeconds && videoRef.current) {
       videoRef.current.currentTime = bookmark.lastWatchedSeconds;
@@ -53,7 +80,14 @@ const LecturePlayerPage = () => {
 
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
-    bookmarkLectureApi(lectureId, Math.floor(videoRef.current.currentTime)).then(setBookmark);
+    bookmarkLectureApi(lectureId, Math.floor(videoRef.current.currentTime))
+      .then(setBookmark)
+      .catch((err) => {
+        // Silently ignore 403s (e.g. when a Teacher is previewing the lecture)
+        if (err.response?.status !== 403) {
+          console.error('Failed to save bookmark:', err);
+        }
+      });
   };
 
   const handleComplete = async () => {
@@ -208,6 +242,16 @@ const LecturePlayerPage = () => {
             }`}
           >
             Q&A / Doubts
+          </button>
+          <button
+            onClick={() => setActiveTab('notes')}
+            className={`flex-1 py-4 text-center font-semibold text-sm transition-all ${
+              activeTab === 'notes'
+                ? 'text-amber-600 dark:text-amber-400 border-b-2 border-amber-500 bg-white dark:bg-dark-950'
+                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            📋 Lecture Notes
           </button>
         </div>
 
@@ -381,6 +425,46 @@ const LecturePlayerPage = () => {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Notes Tab Content */}
+          {activeTab === 'notes' && (
+            <div className="animate-fade-in">
+              {notesFetching ? (
+                <div className="flex justify-center items-center py-20">
+                  <svg className="animate-spin h-8 w-8 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                </div>
+              ) : !lectureNotes ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  </div>
+                  <p className="text-lg font-semibold text-slate-600 dark:text-slate-400">No notes uploaded yet</p>
+                  <p className="text-sm text-slate-400 mt-1">The instructor hasn't added notes for this lecture.</p>
+                </div>
+              ) : (
+                <div>
+                  {/* Protected notes header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      Lecture Notes
+                    </h3>
+                    <span className="text-xs text-slate-400 bg-slate-100 dark:bg-dark-800 px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                      Read-only
+                    </span>
+                  </div>
+
+                  {/* PDF Viewer — secure canvas rendering, no download capability */}
+                  <PdfViewer url={lectureNotes} />
+
+                  <p className="text-xs text-slate-400 mt-3 text-center">
+                    🔒 Notes are for reading only — downloading is not permitted.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

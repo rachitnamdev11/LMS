@@ -20,6 +20,18 @@ const videoStorage = new CloudinaryStorage({
   }
 });
 
+const pdfStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'lms/notes',
+    resource_type: 'raw',   // 'raw' is correct for PDFs — keeps the file as-is with proper Content-Type
+    type: 'upload',          // 'upload' = publicly accessible (vs 'authenticated' or 'private')
+    allowed_formats: ['pdf'],
+    access_mode: 'public'   // explicitly mark as public so Cloudinary serves without a signature
+  }
+});
+
 export const imageUpload = multer({ storage: imageStorage });
 export const videoUpload = multer({ storage: videoStorage });
+export const pdfUpload = multer({ storage: pdfStorage });
 

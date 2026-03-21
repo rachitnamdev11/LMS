@@ -15,7 +15,9 @@ const lectureSchema = new mongoose.Schema(
         url: String
       }
     ],
-    views: { type: Number, default: 0 }
+    views: { type: Number, default: 0 },
+    notesUrl: { type: String, default: '' },
+    notesPublicId: { type: String, default: '' }
   },
   {
     timestamps: true

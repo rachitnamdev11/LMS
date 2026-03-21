@@ -1,6 +1,7 @@
 import Doubt from '../models/Doubt.model.js';
 import Student from '../models/Student.model.js';
 import Teacher from '../models/Teacher.model.js';
+import Course from '../models/Course.model.js';
 import { successResponse } from '../utils/response.util.js';
 
 export const createDoubtController = async (req, res, next) => {
@@ -60,6 +61,27 @@ export const listDoubtsForLectureController = async (req, res, next) => {
     }
 
     return res.status(403).json({ success: false, message: 'Forbidden' });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+export const getInstructorDoubtsController = async (req, res, next) => {
+  try {
+    // Get all courses created by this instructor.
+    // Note: Course.instructor actually stores User._id in this project, not Teacher._id!
+    const courses = await Course.find({ instructor: req.user.id }).select('_id');
+    const courseIds = courses.map(c => c._id);
+
+    // Fetch all doubts associated with these courses
+    const doubts = await Doubt.find({ course: { $in: courseIds } })
+      .populate('course', 'title slug')
+      .populate('lecture', 'title order')
+      .populate('student', 'firstName lastName avatarUrl')
+      .populate('replies.teacher', 'firstName lastName')
+      .sort({ createdAt: -1 }); // newest first
+
+    return successResponse(res, doubts, 'Instructor doubts fetched');
   } catch (err) {
     return next(err);
   }

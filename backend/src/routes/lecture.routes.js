@@ -6,10 +6,12 @@ import {
   incrementLectureViewController,
   bookmarkLectureController,
   getLectureBookmarkController,
-  completeLectureController
+  completeLectureController,
+  addOrUpdateLectureNotesController,
+  getLectureNotesController
 } from '../controllers/lecture.controller.js';
 import { authGuard, isTeacher, isStudent, isEnrolledInCourse } from '../middlewares/auth.middleware.js';
-import { videoUpload } from '../middlewares/upload.middleware.js';
+import { videoUpload, pdfUpload } from '../middlewares/upload.middleware.js';
 
 const router = Router();
 
@@ -24,6 +26,10 @@ router.post('/:lectureId/view', isEnrolledInCourse, incrementLectureViewControll
 router.post('/bookmark', isStudent, isEnrolledInCourse, bookmarkLectureController);
 router.get('/:lectureId/bookmark', isStudent, isEnrolledInCourse, getLectureBookmarkController);
 router.post('/:lectureId/complete', isStudent, isEnrolledInCourse, completeLectureController);
+
+// Notes routes
+router.post('/:lectureId/notes', isTeacher, pdfUpload.single('notes'), addOrUpdateLectureNotesController);
+router.get('/:lectureId/notes', isEnrolledInCourse, getLectureNotesController);
 
 export default router;
 

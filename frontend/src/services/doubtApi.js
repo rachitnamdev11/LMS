@@ -9,3 +9,6 @@ export const listLectureDoubtsApi = (lectureId) =>
 export const replyDoubtApi = (doubtId, message) =>
   api.post('/doubts/reply', { doubtId, message }).then((r) => r.data.data);
 
+export const getInstructorDoubtsApi = () =>
+  api.get('/doubts/instructor').then((r) => r.data.data);
+

@@ -249,10 +249,10 @@ const CourseDetailPage = () => {
                            {l.videoUrl && (
                              <button
                                type="button"
-                               onClick={() => setPreviewVideoUrl(l.videoUrl)}
-                               className="opacity-0 group-hover:opacity-100 px-4 py-2 rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 text-sm font-semibold transition-all transform hover:scale-105 shadow-sm"
+                               onClick={() => navigate(`/student/lecture/${l._id}`, { state: { lecture: { ...l, course: courseId } } })}
+                               className="opacity-0 group-hover:opacity-100 px-4 py-2 rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 text-sm font-semibold transition-all transform hover:scale-105 shadow-sm whitespace-nowrap"
                              >
-                               Preview
+                               Watch & Notes
                              </button>
                            )}
                          </div>

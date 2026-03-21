@@ -43,3 +43,15 @@ export const updateLectureApi = (lectureId, { title, description, order, videoFi
 export const deleteLectureApi = (lectureId) =>
   api.delete(`/lectures/${lectureId}`).then((r) => r.data.data);
 
+export const addOrUpdateLectureNotesApi = (lectureId, pdfFile) => {
+  const formData = new FormData();
+  formData.append('notes', pdfFile);
+  return api
+    .post(`/lectures/${lectureId}/notes`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    .then((r) => r.data.data);
+};
+
+export const getLectureNotesApi = (lectureId) =>
+  api.get(`/lectures/${lectureId}/notes`).then((r) => r.data.data);
