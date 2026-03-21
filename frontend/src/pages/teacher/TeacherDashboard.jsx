@@ -2,18 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 import { getInstructorDoubtsApi, replyDoubtApi } from '../../services/doubtApi.js';
+import { getInstructorStudentsApi } from '../../services/courseApi.js';
 
 const TeacherDashboard = () => {
   const { user } = useAuth();
   const [doubts, setDoubts] = useState([]);
+  const [studentsData, setStudentsData] = useState([]);
   const [replyText, setReplyText] = useState({});
   const [isSubmitting, setIsSubmitting] = useState({});
 
   useEffect(() => {
     getInstructorDoubtsApi().then(setDoubts).catch(console.error);
+    getInstructorStudentsApi().then(setStudentsData).catch(console.error);
   }, []);
 
+  // Compute pending doubts
   const pendingDoubtsCount = doubts.filter(d => d.replies.length === 0).length;
+
+  // Compute unique students
+  const uniqueStudents = new Set();
+  studentsData.forEach(course => {
+    course.enrolledStudents?.forEach(student => {
+      uniqueStudents.add(student._id);
+    });
+  });
+  const totalStudentsCount = uniqueStudents.size;
 
   const handleReply = async (doubtId) => {
     if (!replyText[doubtId]?.trim()) return;
@@ -71,15 +84,15 @@ const TeacherDashboard = () => {
           </div>
         </div>
         
-        <div className="glass-card p-6 flex items-center gap-5">
-          <div className="w-14 h-14 rounded-2xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+        <Link to="/teacher/students" className="glass-card p-6 flex items-center gap-5 hover:bg-teal-50 dark:hover:bg-teal-900/10 transition-colors border border-transparent hover:border-teal-200 dark:hover:border-teal-800">
+          <div className="w-14 h-14 rounded-2xl bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center transition-transform hover:scale-110">
             <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
           </div>
           <div>
              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Students</p>
-             <p className="text-2xl font-bold text-slate-900 dark:text-white">Growing</p>
+             <p className="text-2xl font-bold text-slate-900 dark:text-white">{totalStudentsCount}</p>
           </div>
-        </div>
+        </Link>
 
         <div className="glass-card p-6 flex items-center gap-5">
           <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">

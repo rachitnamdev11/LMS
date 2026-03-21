@@ -10,7 +10,8 @@ import {
   getWishlistController,
   getTeacherCoursesController,
   deleteCourseController,
-  checkEnrollmentController
+  checkEnrollmentController,
+  getInstructorStudentsController
 } from '../controllers/course.controller.js';
 import { authGuard, isStudent, isTeacher } from '../middlewares/auth.middleware.js';
 import { imageUpload } from '../middlewares/upload.middleware.js';
@@ -32,6 +33,8 @@ router.post('/teacher', isTeacher, imageUpload.single('thumbnail'), createCourse
 router.put('/teacher/:courseId', isTeacher, imageUpload.single('thumbnail'), updateCourseController);
 router.post('/teacher/:courseId/publish', isTeacher, publishCourseController);
 router.delete('/teacher/:courseId', isTeacher, deleteCourseController);
+
+router.get('/teacher/students', isTeacher, getInstructorStudentsController);
 
 export default router;
 

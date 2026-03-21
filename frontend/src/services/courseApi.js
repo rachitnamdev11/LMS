@@ -18,4 +18,7 @@ export const toggleWishlistApi = (courseId) =>
 export const checkEnrollmentApi = (courseId) =>
   api.get(`/courses/student/enrollment-status/${courseId}`).then((r) => r.data.data);
 
+export const getInstructorStudentsApi = () =>
+  api.get('/courses/teacher/students').then((r) => r.data.data);
+
 

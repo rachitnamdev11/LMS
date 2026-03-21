@@ -158,3 +158,15 @@ export const checkEnrollmentController = async (req, res, next) => {
   }
 };
 
+export const getInstructorStudentsController = async (req, res, next) => {
+  try {
+    const courses = await Course.find({ instructor: req.user.id })
+      .populate('enrolledStudents', 'firstName lastName email avatarUrl')
+      .sort({ createdAt: -1 });
+    return successResponse(res, courses, 'Instructor students fetched');
+  } catch (err) {
+    return next(err);
+  }
+};
+
+

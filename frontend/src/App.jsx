@@ -16,6 +16,7 @@ import TeacherCoursesPage from './pages/teacher/TeacherCoursesPage.jsx';
 import TeacherCourseManagePage from './pages/teacher/TeacherCourseManagePage.jsx';
 import TeacherLectureDoubtsPage from './pages/teacher/TeacherLectureDoubtsPage.jsx';
 import TeacherDoubtsPage from './pages/teacher/TeacherDoubtsPage.jsx';
+import TeacherStudentsPage from './pages/teacher/TeacherStudentsPage.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import AdminComplaintsPage from './pages/admin/AdminComplaintsPage.jsx';
 import Layout from './layouts/Layout.jsx';
@@ -115,6 +116,14 @@ const App = () => (
         element={
           <ProtectedRoute allowedRoles={['teacher']}>
             <TeacherLectureDoubtsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/teacher/students"
+        element={
+          <ProtectedRoute allowedRoles={['teacher']}>
+            <TeacherStudentsPage />
           </ProtectedRoute>
         }
       />
