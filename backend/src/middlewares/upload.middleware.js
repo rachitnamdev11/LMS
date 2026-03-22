@@ -26,12 +26,21 @@ const pdfStorage = new CloudinaryStorage({
     folder: 'lms/notes',
     resource_type: 'raw',   // 'raw' is correct for PDFs — keeps the file as-is with proper Content-Type
     type: 'upload',          // 'upload' = publicly accessible (vs 'authenticated' or 'private')
-    allowed_formats: ['pdf'],
     access_mode: 'public'   // explicitly mark as public so Cloudinary serves without a signature
   }
 });
 
 export const imageUpload = multer({ storage: imageStorage });
 export const videoUpload = multer({ storage: videoStorage });
-export const pdfUpload = multer({ storage: pdfStorage });
-
+export const pdfUpload = multer({ 
+  storage: pdfStorage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      const err = new Error('Only PDF files are allowed');
+      err.status = 400;
+      cb(err, false);
+    }
+  }
+});
