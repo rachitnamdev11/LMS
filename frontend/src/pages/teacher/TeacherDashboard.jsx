@@ -121,13 +121,16 @@ const TeacherDashboard = () => {
             <p className="text-slate-500 text-sm">Create, edit, and manage all your teaching materials.</p>
           </Link>
           
-          <div className="group glass-card p-8 flex flex-col items-center justify-center text-center opacity-70 cursor-not-allowed">
-            <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-dark-800 text-slate-400 flex items-center justify-center mb-4">
+          <Link
+            to="/teacher/analytics"
+            className="group glass-card p-8 flex flex-col items-center justify-center text-center hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-colors border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800"
+          >
+            <div className="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Analytics View</h3>
-            <p className="text-slate-500 text-sm">Coming soon. Check your revenue and student engagement.</p>
-          </div>
+            <p className="text-slate-500 text-sm">Check your revenue and student engagement metrics.</p>
+          </Link>
           
           <Link
             to="/teacher/doubts"

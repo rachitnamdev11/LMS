@@ -11,7 +11,8 @@ import {
   getTeacherCoursesController,
   deleteCourseController,
   checkEnrollmentController,
-  getInstructorStudentsController
+  getInstructorStudentsController,
+  getInstructorAnalyticsController
 } from '../controllers/course.controller.js';
 import { authGuard, isStudent, isTeacher } from '../middlewares/auth.middleware.js';
 import { imageUpload } from '../middlewares/upload.middleware.js';
@@ -35,6 +36,7 @@ router.post('/teacher/:courseId/publish', isTeacher, publishCourseController);
 router.delete('/teacher/:courseId', isTeacher, deleteCourseController);
 
 router.get('/teacher/students', isTeacher, getInstructorStudentsController);
+router.get('/teacher/analytics', isTeacher, getInstructorAnalyticsController);
 
 export default router;
 

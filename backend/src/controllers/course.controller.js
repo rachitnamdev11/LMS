@@ -10,6 +10,8 @@ import {
 import Course from '../models/Course.model.js';
 import Student from '../models/Student.model.js';
 import Wishlist from '../models/Wishlist.model.js';
+import Payment from '../models/Payment.model.js';
+import Lecture from '../models/Lecture.model.js';
 import { successResponse } from '../utils/response.util.js';
 
 export const searchCoursesController = async (req, res, next) => {
@@ -168,5 +170,114 @@ export const getInstructorStudentsController = async (req, res, next) => {
     return next(err);
   }
 };
+
+export const getInstructorAnalyticsController = async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { days = 30 } = req.query;
+    const dateLimit = new Date();
+    dateLimit.setDate(dateLimit.getDate() - Number(days));
+
+    // 1. Get all courses by this instructor
+    const courses = await Course.find({ instructor: teacherId })
+      .lean();
+
+    const courseIds = courses.map(c => c._id);
+
+    // 2. Compute Global Stats
+    const uniqueStudents = new Set();
+    courses.forEach(c => {
+      (c.enrolledStudents || []).forEach(s => uniqueStudents.add(s.toString()));
+    });
+    const totalStudents = uniqueStudents.size;
+
+    // Revenue
+    const payments = await Payment.find({
+      course: { $in: courseIds },
+      status: 'paid'
+    }).lean();
+
+    const totalRevenue = payments.reduce((acc, p) => acc + p.amount, 0);
+
+    const activeStudentsCount = await Student.countDocuments({
+      _id: { $in: Array.from(uniqueStudents) },
+      lastLogin: { $gte: dateLimit }
+    });
+
+    // 3. Course-wise stats & Completion Rate
+    let totalCompletedEnrollments = 0;
+    let totalEnrollmentsAcrossCourses = 0;
+
+    const courseWiseAnalytics = await Promise.all(courses.map(async (course) => {
+      const courseRevenue = payments
+        .filter(p => p.course?.toString() === course._id.toString())
+        .reduce((sum, p) => sum + p.amount, 0);
+
+      const courseStudents = await Student.find({ enrolledCourses: course._id }).lean();
+      
+      const totalEnrolled = course.enrolledStudents?.length || 0;
+      let completedStudentsCount = 0;
+
+      courseStudents.forEach(student => {
+        const progressEntry = student.courseProgress?.find(cp => cp.course?.toString() === course._id.toString());
+        if (progressEntry && progressEntry.progressPercentage === 100) {
+          completedStudentsCount++;
+          totalCompletedEnrollments++;
+        }
+      });
+
+      totalEnrollmentsAcrossCourses += totalEnrolled;
+
+      const completionRate = totalEnrolled > 0 ? Math.round((completedStudentsCount / totalEnrolled) * 100) : 0;
+
+      // Engagement Rate (Views from lectures)
+      const lectures = await Lecture.find({ course: course._id }).lean();
+      const totalViews = lectures.reduce((sum, l) => sum + (l.views || 0), 0);
+
+      return {
+        _id: course._id,
+        name: course.name,
+        enrollments: totalEnrolled,
+        completionRate,
+        engagementRate: totalViews,
+        revenue: courseRevenue
+      };
+    }));
+
+    const averageCompletionRate = totalEnrollmentsAcrossCourses > 0 
+      ? Math.round((totalCompletedEnrollments / totalEnrollmentsAcrossCourses) * 100) 
+      : 0;
+
+    // Revenue over time (for the line/bar chart)
+    const revenueByDate = {};
+    payments.forEach(p => {
+      if (p.createdAt >= dateLimit) {
+        const dateStr = p.createdAt.toISOString().split('T')[0];
+        revenueByDate[dateStr] = (revenueByDate[dateStr] || 0) + p.amount;
+      }
+    });
+
+    // Format revenue data for charts
+    const revenueTrends = Object.keys(revenueByDate).sort().map(date => ({
+      date,
+      revenue: revenueByDate[date]
+    }));
+
+    return successResponse(res, {
+      global: {
+        totalStudents,
+        activeStudents: activeStudentsCount,
+        totalRevenue,
+        averageCompletionRate
+      },
+      revenueTrends,
+      courseWiseAnalytics
+    }, 'Analytics fetched successfully');
+
+  } catch (err) {
+    return next(err);
+  }
+};
+
 
 

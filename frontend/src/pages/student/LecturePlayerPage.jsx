@@ -10,8 +10,11 @@ import {
 import { getLectureTestsApi, submitTestApi } from '../../services/testApi.js';
 import { createDoubtApi, listLectureDoubtsApi } from '../../services/doubtApi.js';
 import PdfViewer from './PdfViewer.jsx';
+import { useAuth } from '../../hooks/useAuth.js';
 
 const LecturePlayerPage = () => {
+  const { user } = useAuth();
+  const isTeacher = user?.role === 'teacher';
   const { lectureId } = useParams();
   const location = useLocation();
   const lecture = location.state?.lecture;
@@ -25,19 +28,29 @@ const LecturePlayerPage = () => {
   const [doubtText, setDoubtText] = useState('');
   const [activeTab, setActiveTab] = useState('tests'); // 'tests', 'doubts', or 'notes'
   const [accessDenied, setAccessDenied] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
   const [lectureNotes, setLectureNotes] = useState(null);  // null = not yet fetched
   const [notesFetching, setNotesFetching] = useState(false);
 
   useEffect(() => {
     const init = async () => {
       try {
-        incrementLectureViewApi(lectureId);
-        const [bm, t, d] = await Promise.all([
-          getLectureBookmarkApi(lectureId).catch(() => null),
+        if (!isTeacher) {
+          const viewKey = `viewed_lecture_${lectureId}`;
+          if (!sessionStorage.getItem(viewKey)) {
+            incrementLectureViewApi(lectureId).catch(console.error);
+            sessionStorage.setItem(viewKey, 'true');
+          }
+          const bm = await getLectureBookmarkApi(lectureId).catch(() => null);
+          if (bm) {
+            setBookmark(bm);
+            setIsCompleted(bm.isCompleted === true);
+          }
+        }
+        const [t, d] = await Promise.all([
           getLectureTestsApi(lectureId).catch(() => []),
           listLectureDoubtsApi(lectureId).catch(() => [])
         ]);
-        setBookmark(bm);
         setTests(t || []);
         setDoubts(d || []);
       } catch (err) {
@@ -47,7 +60,7 @@ const LecturePlayerPage = () => {
       }
     };
     init();
-  }, [lectureId]);
+  }, [lectureId, isTeacher]);
 
   // Fetch notes when Notes tab is first activated
   useEffect(() => {
@@ -79,7 +92,7 @@ const LecturePlayerPage = () => {
   }, [bookmark]);
 
   const handleTimeUpdate = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || isTeacher) return;
     bookmarkLectureApi(lectureId, Math.floor(videoRef.current.currentTime))
       .then(setBookmark)
       .catch((err) => {
@@ -91,8 +104,13 @@ const LecturePlayerPage = () => {
   };
 
   const handleComplete = async () => {
-    await completeLectureApi(lectureId);
-    // Could add a toast notification here
+    if (isCompleted || isTeacher) return;
+    try {
+      await completeLectureApi(lectureId);
+      setIsCompleted(true);
+    } catch (err) {
+      console.error('Failed to mark complete', err);
+    }
   };
 
   const handleSelectTest = (t) => {
@@ -192,19 +210,35 @@ const LecturePlayerPage = () => {
         </div>
         
         <div className="flex items-center gap-3">
-          {bookmark && (
+          {!isTeacher && bookmark && (
             <span className="text-sm font-medium text-slate-500 bg-slate-100 dark:bg-dark-800 px-3 py-1.5 rounded-full">
               Resumed at {Math.floor((bookmark.lastWatchedSeconds || 0) / 60)}:{(bookmark.lastWatchedSeconds % 60).toString().padStart(2, '0')}
             </span>
           )}
-          <button
-            type="button"
-            onClick={handleComplete}
-            className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/20 flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-            Mark Complete
-          </button>
+          {!isTeacher && (
+            <button
+              type="button"
+              onClick={handleComplete}
+              disabled={isCompleted}
+              className={`px-5 py-2.5 rounded-xl font-medium transition-colors shadow-lg flex items-center gap-2 ${
+                isCompleted 
+                  ? 'bg-slate-200 dark:bg-dark-800 text-emerald-600 dark:text-emerald-400 cursor-default' 
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-500/20'
+              }`}
+            >
+              {isCompleted ? (
+                <>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  Completed
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  Mark Complete
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -217,6 +251,7 @@ const LecturePlayerPage = () => {
           controlsList="nodownload"
           className="w-full aspect-video outline-none"
           onTimeUpdate={handleTimeUpdate}
+          onEnded={handleComplete}
         />
       </div>
 

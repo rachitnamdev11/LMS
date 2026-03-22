@@ -81,9 +81,27 @@ export const deleteLectureController = async (req, res, next) => {
   }
 };
 
+const viewCache = new Map();
+
 export const incrementLectureViewController = async (req, res, next) => {
   try {
     const { lectureId } = req.params;
+    const userId = req.user.id;
+    
+    // Create a unique key for this user and lecture
+    const cacheKey = `${userId}_${lectureId}`;
+    const lastViewed = viewCache.get(cacheKey);
+    const now = Date.now();
+    
+    // Prevent duplicate view counts per user per lecture within 1 hour (3600000ms)
+    if (lastViewed && (now - lastViewed < 60 * 60 * 1000)) {
+       // Return early without incrementing if viewed recently
+       return successResponse(res, {}, 'View already recorded recently');
+    }
+    
+    // Record the view timestamp in cache
+    viewCache.set(cacheKey, now);
+
     const lecture = await Lecture.findByIdAndUpdate(
       lectureId,
       { $inc: { views: 1 } },
@@ -154,7 +172,22 @@ export const getLectureBookmarkController = async (req, res, next) => {
     const student = await Student.findOne({ user: req.user.id });
     const { lectureId } = req.params;
     const bookmark = await Bookmark.findOne({ student: student._id, lecture: lectureId });
-    return successResponse(res, bookmark || null, 'Bookmark fetched');
+    
+    // Check if this lecture is in the student's completedLectures
+    let isCompleted = false;
+    if (student.courseProgress) {
+      for (const cp of student.courseProgress) {
+        if (cp.completedLectures && cp.completedLectures.some(l => l.toString() === lectureId)) {
+          isCompleted = true;
+          break;
+        }
+      }
+    }
+
+    const payload = bookmark ? bookmark.toObject() : {};
+    payload.isCompleted = isCompleted;
+
+    return successResponse(res, payload, 'Bookmark fetched');
   } catch (err) {
     return next(err);
   }

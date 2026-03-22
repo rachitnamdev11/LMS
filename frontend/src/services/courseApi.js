@@ -21,4 +21,5 @@ export const checkEnrollmentApi = (courseId) =>
 export const getInstructorStudentsApi = () =>
   api.get('/courses/teacher/students').then((r) => r.data.data);
 
-
+export const getInstructorAnalyticsApi = (days = 30) =>
+  api.get('/courses/teacher/analytics', { params: { days } }).then((r) => r.data.data);
