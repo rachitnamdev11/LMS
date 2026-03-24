@@ -9,6 +9,16 @@ export const addCourseReviewController = async (req, res, next) => {
   try {
     const student = await Student.findOne({ user: req.user.id });
     const { courseId, rating, reviewText } = req.body;
+
+    if (!student.enrolledCourses.includes(courseId)) {
+      throw Object.assign(new Error('You must be enrolled in this course to submit a rating'), { status: 403 });
+    }
+
+    const existingReview = await Review.findOne({ course: courseId, student: student._id });
+    if (existingReview) {
+      throw Object.assign(new Error('You have already rated this course'), { status: 400 });
+    }
+
     const review = await Review.create({ course: courseId, student: student._id, rating, reviewText });
 
     const agg = await Review.aggregate([

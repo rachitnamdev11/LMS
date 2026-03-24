@@ -2,6 +2,7 @@ import Course from '../models/Course.model.js';
 import Lecture from '../models/Lecture.model.js';
 import Student from '../models/Student.model.js';
 import Wishlist from '../models/Wishlist.model.js';
+import Teacher from '../models/Teacher.model.js';
 
 export const searchCourses = async ({ q, category, priceMin, priceMax, language, ratingMin, instructorId, page = 1, limit = 12 }) => {
   const filter = { isRemovedByAdmin: false };
@@ -46,12 +47,21 @@ export const searchCourses = async ({ q, category, priceMin, priceMax, language,
 };
 
 export const getCourseDetail = async (courseId) => {
-  const course = await Course.findById(courseId).populate('instructor');
+  const course = await Course.findById(courseId);
   if (!course || course.isRemovedByAdmin) {
     throw Object.assign(new Error('Course not found'), { status: 404 });
   }
+
+  let instructor = await Teacher.findById(course.instructor);
+  if (!instructor) {
+    instructor = await Teacher.findOne({ user: course.instructor });
+  }
+
+  const courseObj = course.toObject();
+  courseObj.instructor = instructor;
+
   const lectures = await Lecture.find({ course: courseId }).sort({ order: 1 });
-  return { course, lectures };
+  return { course: courseObj, lectures };
 };
 
 export const createCourse = async ({ instructorId, payload }) => {

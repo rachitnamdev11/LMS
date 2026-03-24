@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getCourseDetailApi, checkEnrollmentApi } from '../../services/courseApi.js';
 import { createEnrollmentOrderApi, verifyPaymentApi } from '../../services/paymentApi.js';
+import { addCourseReviewApi } from '../../services/reviewApi.js';
 import { useAuth } from '../../hooks/useAuth.js';
 
 const CourseDetailPage = () => {
@@ -16,6 +17,13 @@ const CourseDetailPage = () => {
   const [enrollmentChecked, setEnrollmentChecked] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [previewVideoUrl, setPreviewVideoUrl] = useState(null);
+
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [reviewText, setReviewText] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [reviewSuccess, setReviewSuccess] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -113,6 +121,26 @@ const CourseDetailPage = () => {
     }
   };
 
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (rating === 0) {
+      setReviewError('Please select a rating');
+      return;
+    }
+    setSubmittingReview(true);
+    setReviewError('');
+    try {
+      await addCourseReviewApi({ courseId, rating, reviewText });
+      setReviewSuccess(true);
+      const res = await getCourseDetailApi(courseId);
+      setData(res);
+    } catch (err) {
+      setReviewError(err.response?.data?.message || 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[500px]">
@@ -177,19 +205,25 @@ const CourseDetailPage = () => {
                   <div className="flex -space-x-1">
                     <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
                   </div>
-                  <span className="text-white font-bold">{course?.ratingsSummary ? Number(course.ratingsSummary.averageRating).toFixed(1) : '4.8'}</span>
-                  <span>({course?.ratingsSummary?.totalRatings || '1,234'} ratings)</span>
+                  {course?.ratingsSummary?.totalRatings > 0 ? (
+                    <>
+                      <span className="text-white font-bold">{Number(course.ratingsSummary.averageRating).toFixed(1)}</span>
+                      <span>({course.ratingsSummary.totalRatings} ratings)</span>
+                    </>
+                  ) : (
+                    <span className="text-slate-300 italic">No ratings yet</span>
+                  )}
                 </div>
                 
                 <div className="flex items-center gap-2">
                   <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                  <span>2,300 students</span>
+                  <span>{course?.enrolledStudents?.length || 0} students enrolled</span>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                   <span className="text-slate-400">Created by</span>
+                   <span className="text-slate-400">Created by:</span>
                    <span className="text-primary-300 font-bold underline decoration-primary-500/50 underline-offset-4">
-                     {course?.instructor?.firstName} {course?.instructor?.lastName}
+                     {course?.instructor?.firstName || 'Unknown'} {course?.instructor?.lastName || ''}
                    </span>
                 </div>
              </div>
@@ -276,6 +310,64 @@ const CourseDetailPage = () => {
                )}
              </div>
            </section>
+
+            {/* Rate this Course Section */}
+            {user?.role === 'student' && isEnrolled && (
+              <section className="glass-card p-8 border border-slate-200 dark:border-dark-800 mt-12 shadow-sm rounded-2xl">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Rate this Course</h2>
+                {reviewSuccess ? (
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 p-4 rounded-xl flex items-center gap-3">
+                    <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <p className="font-semibold">Thank you for rating this course!</p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleReviewSubmit} className="space-y-6">
+                    {reviewError && (
+                      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-xl text-sm font-medium">
+                        {reviewError}
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Your Rating</label>
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            className="focus:outline-none transition-transform hover:scale-110"
+                            onClick={() => setRating(star)}
+                            onMouseEnter={() => setHoverRating(star)}
+                            onMouseLeave={() => setHoverRating(0)}
+                          >
+                            <svg className={`w-10 h-10 ${star <= (hoverRating || rating) ? 'text-amber-400' : 'text-slate-300 dark:text-slate-700'}`} fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2" htmlFor="reviewText">Write a Review (Optional)</label>
+                      <textarea
+                        id="reviewText"
+                        value={reviewText}
+                        onChange={(e) => setReviewText(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 dark:border-dark-700 bg-white dark:bg-dark-900 px-4 py-3 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                        rows="4"
+                        placeholder="How was your experience taking this course?"
+                      ></textarea>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={submittingReview}
+                      className="px-6 py-3 rounded-xl bg-primary-600 text-white font-bold tracking-wide hover:bg-primary-700 focus:ring-4 focus:ring-primary-500/50 disabled:opacity-70 disabled:cursor-not-allowed transition-all shadow-md"
+                    >
+                      {submittingReview ? 'Submitting...' : 'Submit Review'}
+                    </button>
+                  </form>
+                )}
+              </section>
+            )}
         </div>
 
         {/* Sticky Sidebar */}
