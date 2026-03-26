@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   incrementLectureViewApi,
   bookmarkLectureApi,
@@ -7,7 +7,7 @@ import {
   completeLectureApi,
   getLectureNotesApi
 } from '../../services/lectureApi.js';
-import { getLectureTestsApi, submitTestApi } from '../../services/testApi.js';
+import { getLectureTestApi, getMyTestResultsApi } from '../../services/testApi.js';
 import { createDoubtApi, listLectureDoubtsApi } from '../../services/doubtApi.js';
 import PdfViewer from './PdfViewer.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -17,13 +17,11 @@ const LecturePlayerPage = () => {
   const isTeacher = user?.role === 'teacher';
   const { lectureId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const lecture = location.state?.lecture;
   const videoRef = useRef(null);
   const [bookmark, setBookmark] = useState(null);
-  const [tests, setTests] = useState([]);
-  const [selectedTest, setSelectedTest] = useState(null);
-  const [answers, setAnswers] = useState({});
-  const [result, setResult] = useState(null);
+  const [lectureTest, setLectureTest] = useState(undefined); // undefined = loading, null = none
   const [doubts, setDoubts] = useState([]);
   const [doubtText, setDoubtText] = useState('');
   const [activeTab, setActiveTab] = useState('tests'); // 'tests', 'doubts', or 'notes'
@@ -31,6 +29,7 @@ const LecturePlayerPage = () => {
   const [isCompleted, setIsCompleted] = useState(false);
   const [lectureNotes, setLectureNotes] = useState(null);  // null = not yet fetched
   const [notesFetching, setNotesFetching] = useState(false);
+  const [attemptsUsed, setAttemptsUsed] = useState(0);
 
   useEffect(() => {
     const init = async () => {
@@ -48,15 +47,25 @@ const LecturePlayerPage = () => {
           }
         }
         const [t, d] = await Promise.all([
-          getLectureTestsApi(lectureId).catch(() => []),
+          getLectureTestApi(lectureId).catch(() => null),
           listLectureDoubtsApi(lectureId).catch(() => [])
         ]);
-        setTests(t || []);
+        setLectureTest(t || null);
         setDoubts(d || []);
+
+        // Fetch attempts used for this test (students only)
+        if (!isTeacher && t?._id) {
+          try {
+            const results = await getMyTestResultsApi();
+            const used = results.filter((r) => r.test?._id === t._id || r.test === t._id).length;
+            setAttemptsUsed(used);
+          } catch (e) {}
+        }
       } catch (err) {
         if (err.response?.status === 403) {
           setAccessDenied(true);
         }
+        setLectureTest(null);
       }
     };
     init();
@@ -111,29 +120,6 @@ const LecturePlayerPage = () => {
     } catch (err) {
       console.error('Failed to mark complete', err);
     }
-  };
-
-  const handleSelectTest = (t) => {
-    setSelectedTest(t);
-    setAnswers({});
-    setResult(null);
-  };
-
-  const handleAnswerChange = (qIdx, optIdx) => {
-    setAnswers((prev) => ({ ...prev, [qIdx]: optIdx }));
-  };
-
-  const handleSubmitTest = async () => {
-    if (!selectedTest) return;
-    const payload = {
-      testId: selectedTest._id,
-      answers: Object.entries(answers).map(([qIdx, optIdx]) => ({
-        questionIndex: Number(qIdx),
-        selectedOptionIndex: optIdx
-      }))
-    };
-    const res = await submitTestApi(payload);
-    setResult(res);
   };
 
   const handleCreateDoubt = async () => {
@@ -295,94 +281,87 @@ const LecturePlayerPage = () => {
           {/* Tests Tab Content */}
           {activeTab === 'tests' && (
             <div className="animate-fade-in">
-              {!selectedTest ? (
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Available Tests for this Lecture</h3>
-                  {tests.length === 0 ? (
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Knowledge Check</h3>
+                  {lectureTest === undefined ? (
+                    <div className="flex justify-center py-12">
+                      <svg className="animate-spin h-7 w-7 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    </div>
+                  ) : !lectureTest ? (
                     <div className="text-center py-12 text-slate-500">
-                      No tests have been assigned for this lecture yet.
+                      No test has been assigned for this lecture yet.
                     </div>
                   ) : (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      {tests.map((t) => (
-                        <button
-                          key={t._id}
-                          onClick={() => handleSelectTest(t)}
-                          className="text-left group p-6 rounded-xl border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-800 hover:border-primary-500 dark:hover:border-primary-500 hover:shadow-lg hover:shadow-primary-500/10 transition-all flex justify-between items-center"
-                        >
-                          <div>
-                            <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors mb-1">{t.title}</h4>
-                            <p className="text-xs font-medium text-slate-500">{t.questions.length} questions</p>
-                          </div>
-                          <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-dark-700 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/30 text-slate-400 group-hover:text-primary-600 flex items-center justify-center transition-colors">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="max-w-3xl mx-auto">
-                  <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-200 dark:border-dark-800">
-                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{selectedTest.title}</h3>
-                    <button onClick={() => setSelectedTest(null)} className="text-sm font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-300">
-                      ← Back to tests
-                    </button>
-                  </div>
-                  
-                  {result ? (
-                    <div className="bg-slate-50 dark:bg-dark-800 rounded-2xl p-8 border border-slate-200 dark:border-dark-700 text-center animate-slide-up">
-                      <div className="w-20 h-20 mx-auto bg-gradient-to-r from-emerald-400 to-teal-500 hidden sm:flex items-center justify-center rounded-full text-white shadow-xl shadow-emerald-500/20 mb-6">
-                        <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      </div>
-                      <h4 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Test Completed!</h4>
-                      <div className="inline-block bg-white dark:bg-dark-900 rounded-xl px-6 py-4 shadow-sm border border-slate-100 dark:border-dark-800 mb-6">
-                         <div className="text-4xl font-black text-primary-600 dark:text-primary-400 mb-1">{result.score}<span className="text-xl text-slate-400">/{result.totalMarks}</span></div>
-                         <p className="text-sm text-slate-500 uppercase tracking-widest font-bold">Total Score</p>
-                      </div>
-                      <div className="flex justify-center gap-8 text-sm font-medium">
-                        <div className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-emerald-500"></span> {result.correctAnswers} Correct</div>
-                        <div className="text-rose-600 dark:text-rose-400 flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-rose-500"></span> {result.incorrectAnswers} Incorrect</div>
-                      </div>
-                      <button onClick={() => handleSelectTest(selectedTest)} className="mt-8 px-6 py-2 bg-slate-200 dark:bg-dark-700 font-medium rounded-lg hover:bg-slate-300 dark:hover:bg-dark-600 transition-colors">
-                        Retake Test
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-8">
-                      {selectedTest.questions.map((q, idx) => (
-                        <div key={idx} className="bg-white dark:bg-dark-800 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm">
-                          <p className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex gap-3">
-                            <span className="text-primary-500">{idx + 1}.</span> {q.questionText}
-                          </p>
-                          <div className="space-y-3">
-                            {q.options.map((opt, oIdx) => (
-                              <label key={oIdx} className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${answers[idx] === oIdx ? 'bg-primary-50 dark:bg-primary-900/10 border-primary-500 shadow-sm shadow-primary-500/10' : 'bg-slate-50 dark:bg-dark-900/50 border-transparent hover:border-slate-300 dark:hover:border-slate-600'}`}>
-                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${answers[idx] === oIdx ? 'border-primary-600' : 'border-slate-400'}`}>
-                                  {answers[idx] === oIdx && <div className="w-2.5 h-2.5 rounded-full bg-primary-600"></div>}
-                                </div>
-                                <span className={`font-medium ${answers[idx] === oIdx ? 'text-primary-900 dark:text-primary-100' : 'text-slate-700 dark:text-slate-300'}`}>{opt}</span>
-                              </label>
-                            ))}
-                          </div>
+                    <div className="max-w-lg mx-auto">
+                      <div className="rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-900/20 to-indigo-900/10 p-8 text-center shadow-lg shadow-violet-500/10">
+                        <div className="w-16 h-16 rounded-2xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center mx-auto mb-4">
+                          <svg className="w-8 h-8 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
                         </div>
-                      ))}
-                      
-                      <div className="flex justify-end pt-4">
-                        <button
-                          type="button"
-                          onClick={handleSubmitTest}
-                          disabled={Object.keys(answers).length !== selectedTest.questions.length}
-                          className="px-8 py-3 rounded-xl bg-primary-600 text-white font-bold text-lg hover:bg-primary-700 transition-colors shadow-lg shadow-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Submit Answers
-                        </button>
+                        <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-1">{lectureTest.title}</h4>
+                        <div className="flex flex-wrap justify-center gap-3 text-xs font-semibold my-4">
+                          <span className="px-2.5 py-1 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-700">
+                            {lectureTest.numQuestionsToServe || lectureTest.questionPool?.length || 0} Questions
+                          </span>
+                          <span className="px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700">
+                            {lectureTest.duration ?? 30} min
+                          </span>
+                          {lectureTest.negativeMarking?.enabled && (
+                            <span className="px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-700">
+                              -{lectureTest.negativeMarking.value} Negative Marking
+                            </span>
+                          )}
+                          {!isTeacher ? (
+                            <span className={`px-2.5 py-1 rounded-full border font-bold ${
+                              lectureTest.attemptLimit === 0
+                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700'
+                                : Math.max(0, lectureTest.attemptLimit - attemptsUsed) === 0
+                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                            }`}>
+                              {lectureTest.attemptLimit === 0
+                                ? '∞ Unlimited Attempts'
+                                : `${Math.max(0, lectureTest.attemptLimit - attemptsUsed)} Attempt${Math.max(0, lectureTest.attemptLimit - attemptsUsed) !== 1 ? 's' : ''} Left`}
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                              {lectureTest.attemptLimit === 0 ? 'Unlimited' : `${lectureTest.attemptLimit} Attempt${lectureTest.attemptLimit !== 1 ? 's' : ''}`}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                          Test is conducted in full-screen mode. Switching tabs will be tracked.
+                        </p>
+                        {!isTeacher && (() => {
+                          const attemptsLeft = lectureTest.attemptLimit === 0
+                            ? Infinity
+                            : Math.max(0, lectureTest.attemptLimit - attemptsUsed);
+                          const locked = attemptsLeft === 0;
+                          return locked ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="flex items-center gap-2 px-6 py-3 rounded-xl bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 font-bold text-sm">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                Attempt Limit Reached
+                              </div>
+                              <p className="text-xs text-slate-500">You have used all {lectureTest.attemptLimit} attempt{lectureTest.attemptLimit !== 1 ? 's' : ''}.</p>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/student/test/${lectureTest._id}`)}
+                              className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-violet-600 text-white font-bold text-base hover:bg-violet-500 transition-all shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 hover:-translate-y-0.5"
+                            >
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                              Take Test Now
+                            </button>
+                          );
+                        })()}
+                        {isTeacher && (
+                          <p className="text-xs text-slate-500 italic">Students can attempt this test after watching the lecture.</p>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
-              )}
             </div>
           )}
 

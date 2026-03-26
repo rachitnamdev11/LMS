@@ -1,23 +1,41 @@
 import { Router } from 'express';
 import { authGuard, isStudent, isTeacher } from '../middlewares/auth.middleware.js';
 import {
-  createTestController,
-  generateTestAIController,
+  upsertTestController,
+  getLectureTestController,
+  getTestByIdController,
+  togglePublishController,
+  deleteTestController,
+  getTestAnalyticsController,
+  startTestSessionController,
+  saveProgressController,
   submitTestController,
-  getLectureTestsController,
-  getMyTestResultsController
+  getTestResultController,
+  getSessionController,
+  getMyResultsController
 } from '../controllers/test.controller.js';
 
 const router = Router();
 
-router.get('/lecture/:lectureId', authGuard, getLectureTestsController);
-
+// All routes require auth
 router.use(authGuard);
 
-router.post('/', isTeacher, createTestController);
-router.post('/generate-ai', isTeacher, generateTestAIController);
-router.post('/submit', isStudent, submitTestController);
-router.get('/me/results', isStudent, getMyTestResultsController);
+// ── Instructor routes ──
+router.post('/', isTeacher, upsertTestController);
+router.patch('/:testId/publish', isTeacher, togglePublishController);
+router.delete('/:testId', isTeacher, deleteTestController);
+router.get('/:testId/analytics', isTeacher, getTestAnalyticsController);
+
+// ── Shared read routes (teacher + student) ──
+router.get('/lecture/:lectureId', getLectureTestController);
+router.get('/me/results', isStudent, getMyResultsController);
+router.get('/:testId', getTestByIdController);
+
+// ── Student session routes ──
+router.post('/:testId/start', isStudent, startTestSessionController);
+router.patch('/:testId/save-progress', isStudent, saveProgressController);
+router.post('/:testId/submit', isStudent, submitTestController);
+router.get('/:testId/result', isStudent, getTestResultController);
+router.get('/:testId/session', isStudent, getSessionController);
 
 export default router;
-

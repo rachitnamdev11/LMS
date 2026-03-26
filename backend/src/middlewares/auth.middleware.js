@@ -27,6 +27,11 @@ export const authGuard = async (req, res, next) => {
 
     return next();
   } catch (err) {
+    if (err.name === 'MongoServerSelectionError' || err.name === 'MongoNetworkError' || err.name === 'MongooseError') {
+      console.error("Database error in authGuard:", err.message);
+      return res.status(503).json({ success: false, message: 'Service Unavailable - DB Connection Lost' });
+    }
+    console.error("Auth Guard Error:", err.message);
     return res.status(401).json({ success: false, message: 'Invalid or expired token' });
   }
 };

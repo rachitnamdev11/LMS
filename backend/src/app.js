@@ -53,7 +53,9 @@ console.log("Mongo URI:", process.env.MONGODB_URI);
 console.log("Mongo DB Name:", process.env.MONGODB_DB_NAME);
 mongoose
   .connect(process.env.MONGODB_URI, {
-    dbName: process.env.MONGODB_DB_NAME || 'lms'
+    dbName: process.env.MONGODB_DB_NAME || 'lms',
+    serverSelectionTimeoutMS: 5000, // Fail fast on lost connection instead of hanging for 30s+
+    socketTimeoutMS: 45000 // Prevent sockets from hanging indefinitely on stalled NAT64 connections
   })
   .then(() => {
     // eslint-disable-next-line no-console
