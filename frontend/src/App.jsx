@@ -22,6 +22,7 @@ import TeacherCreateTestPage from './pages/teacher/TeacherCreateTestPage.jsx';
 import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import StudentTestPage from './pages/student/StudentTestPage.jsx';
 import TestResultPage from './pages/student/TestResultPage.jsx';
+import LeaderboardPage from './pages/student/LeaderboardPage.jsx';
 import AdminComplaintsPage from './pages/admin/AdminComplaintsPage.jsx';
 import Layout from './layouts/Layout.jsx';
 import HomePage from './pages/common/HomePage.jsx';
@@ -122,6 +123,14 @@ const App = () => {
           element={
             <ProtectedRoute allowedRoles={['student', 'teacher', 'admin']}>
               <LecturePlayerPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/student/leaderboard"
+          element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <LeaderboardPage />
             </ProtectedRoute>
           }
         />

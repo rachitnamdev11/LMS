@@ -436,7 +436,8 @@ export const submitTestController = async (req, res, next) => {
     }
 
     const totalMarks = servedQuestions.reduce((s, q) => s + q.marks, 0);
-    const accuracy = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0;
+    const totalAttempted = correctAnswers + incorrectAnswers;
+    const accuracy = totalAttempted > 0 ? Math.round((correctAnswers / totalAttempted) * 100) : 0;
 
     const result = await TestResult.create({
       test: test._id,

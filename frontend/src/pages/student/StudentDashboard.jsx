@@ -1,28 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getStudentEnrolledCoursesApi } from '../../services/courseApi.js';
-import { getLeaderboardApi } from '../../services/leaderboardApi.js';
+import { getCourseLeaderboardApi } from '../../services/leaderboardApi.js';
 import { getMyCertificatesApi } from '../../services/certificateApi.js';
 import { useAuth } from '../../hooks/useAuth.js';
 
 const StudentDashboard = () => {
   const { user } = useAuth();
   const [enrolled, setEnrolled] = useState([]);
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [myRank, setMyRank] = useState(null);
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [e, l, c] = await Promise.all([
+        const [e, c] = await Promise.all([
           getStudentEnrolledCoursesApi(),
-          getLeaderboardApi(),
           getMyCertificatesApi()
         ]);
         setEnrolled(e || []);
-        setLeaderboard(l || []);
         setCertificates(c || []);
+
+        // Load rank for the first enrolled course
+        if (e && e[0]?._id) {
+          try {
+            const lb = await getCourseLeaderboardApi(e[0]._id);
+            const cu = lb?.currentUser;
+            if (cu) setMyRank(cu.rank);
+          } catch (_) {
+            // Error ignored
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -81,8 +90,9 @@ const StudentDashboard = () => {
           <div>
              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Leaderboard Rank</p>
              <p className="text-2xl font-bold text-slate-900 dark:text-white">
-               {leaderboard.findIndex(s => s._id === user?._id) !== -1 ? `#${leaderboard.findIndex(s => s._id === user?._id) + 1}` : 'N/A'}
+               {myRank ? `#${myRank}` : 'N/A'}
              </p>
+             <Link to="/student/leaderboard" className="text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400">View full leaderboard →</Link>
           </div>
         </div>
       </div>
@@ -142,7 +152,7 @@ const StudentDashboard = () => {
       </section>
 
       {/* Details Sections */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <section className="max-w-3xl">
         
         {/* Certificates */}
         <div className="glass-card flex flex-col overflow-hidden">
@@ -171,48 +181,6 @@ const StudentDashboard = () => {
               <div className="p-8 text-center flex flex-col justify-center h-full text-slate-500">
                 <p>You haven't earned any certificates yet.</p>
                 <p className="text-sm mt-1">Complete a course to get certified!</p>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Leaderboard */}
-        <div className="glass-card flex flex-col overflow-hidden">
-          <div className="p-6 border-b border-slate-200 dark:border-dark-800 flex justify-between items-center bg-slate-50/50 dark:bg-dark-900/50">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
-              Top Students
-            </h2>
-          </div>
-          <div className="p-0 flex-1">
-            {leaderboard.length > 0 ? (
-              <ul className="divide-y divide-slate-100 dark:divide-dark-800">
-                {leaderboard.slice(0, 5).map((s, idx) => (
-                  <li key={s._id} className={`p-4 sm:px-6 flex items-center justify-between ${s._id === user?._id ? 'bg-primary-50 dark:bg-primary-900/10' : 'hover:bg-slate-50 dark:hover:bg-dark-800/50'} transition-colors`}>
-                    <div className="flex items-center gap-4">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                        idx === 0 ? 'bg-yellow-100 text-yellow-700 shadow-sm border border-yellow-200' :
-                        idx === 1 ? 'bg-slate-200 text-slate-700 shadow-sm' :
-                        idx === 2 ? 'bg-orange-100 text-orange-800 shadow-sm' :
-                        'bg-slate-100 dark:bg-dark-700 text-slate-600 dark:text-slate-400'
-                      }`}>
-                        {idx + 1}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className={`font-semibold ${s._id === user?._id ? 'text-primary-700 dark:text-primary-400' : 'text-slate-900 dark:text-white'}`}>
-                          {s.firstName || 'Student'} {s.lastName || ''} {s._id === user?._id && '(You)'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="font-mono text-sm font-medium text-slate-500 dark:text-slate-400">
-                      {s.points || 0} pts
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="p-8 text-center flex flex-col justify-center h-full text-slate-500">
-                <p>No leaderboard data available.</p>
               </div>
             )}
           </div>

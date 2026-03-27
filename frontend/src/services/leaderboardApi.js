@@ -1,5 +1,10 @@
 import api from './apiClient.js';
 
-export const getLeaderboardApi = () =>
-  api.get('/leaderboard').then((r) => r.data.data);
-
+/**
+ * GET /api/leaderboard/:courseId?period=week|month
+ * Returns { leaderboard: [...], currentUser: {...}|null }
+ */
+export const getCourseLeaderboardApi = (courseId, period) => {
+  const params = period ? { period } : {};
+  return api.get(`/leaderboard/${courseId}`, { params }).then((r) => r.data.data);
+};

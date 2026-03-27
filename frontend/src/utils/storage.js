@@ -15,4 +15,3 @@ export const setStoredAuth = (value) => {
 export const clearStoredAuth = () => {
   localStorage.removeItem('lms-auth');
 };
-
