@@ -27,6 +27,7 @@ const userSchema = new mongoose.Schema(
     otpExpiresAt: Date,
     resetOtpCode: String,
     resetOtpExpiresAt: Date,
+    isBlocked: { type: Boolean, default: false },
     lastLogin: Date,
     createdAt: {
       type: Date,

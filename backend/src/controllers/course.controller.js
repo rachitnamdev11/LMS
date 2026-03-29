@@ -12,6 +12,7 @@ import Student from '../models/Student.model.js';
 import Wishlist from '../models/Wishlist.model.js';
 import Payment from '../models/Payment.model.js';
 import Lecture from '../models/Lecture.model.js';
+import Review from '../models/Review.model.js';
 import { successResponse } from '../utils/response.util.js';
 
 export const searchCoursesController = async (req, res, next) => {
@@ -98,7 +99,17 @@ export const publishCourseController = async (req, res, next) => {
 export const getStudentEnrolledCoursesController = async (req, res, next) => {
   try {
     const student = await Student.findOne({ user: req.user.id }).populate('enrolledCourses');
-    return successResponse(res, student?.enrolledCourses || [], 'Enrolled courses fetched');
+    
+    const coursesWithProgress = (student?.enrolledCourses || []).map(course => {
+      const courseObj = course.toObject();
+      const progressEntry = student.courseProgress?.find(
+        cp => cp.course?.toString() === course._id.toString()
+      );
+      courseObj.progressPercentage = progressEntry?.progressPercentage || 0;
+      return courseObj;
+    });
+
+    return successResponse(res, coursesWithProgress, 'Enrolled courses fetched');
   } catch (err) {
     return next(err);
   }
@@ -154,7 +165,13 @@ export const checkEnrollmentController = async (req, res, next) => {
     const enrolled = student.enrolledCourses.some(
       (id) => id.toString() === courseId.toString()
     );
-    return successResponse(res, { enrolled }, 'Enrollment status fetched');
+    
+    let userReview = null;
+    if (enrolled) {
+      userReview = await Review.findOne({ course: courseId, student: student._id }).lean();
+    }
+
+    return successResponse(res, { enrolled, userReview }, 'Enrollment status fetched');
   } catch (err) {
     return next(err);
   }

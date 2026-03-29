@@ -24,6 +24,14 @@ import StudentTestPage from './pages/student/StudentTestPage.jsx';
 import TestResultPage from './pages/student/TestResultPage.jsx';
 import LeaderboardPage from './pages/student/LeaderboardPage.jsx';
 import AdminComplaintsPage from './pages/admin/AdminComplaintsPage.jsx';
+import AdminUsersPage from './pages/admin/AdminUsersPage.jsx';
+import AdminCoursesPage from './pages/admin/AdminCoursesPage.jsx';
+import AdminReviewsPage from './pages/admin/AdminReviewsPage.jsx';
+import AdminAnalyticsPage from './pages/admin/AdminAnalyticsPage.jsx';
+import AdminPaymentsPage from './pages/admin/AdminPaymentsPage.jsx';
+import AdminNotificationsPage from './pages/admin/AdminNotificationsPage.jsx';
+import AdminLogsPage from './pages/admin/AdminLogsPage.jsx';
+import AdminSettingsPage from './pages/admin/AdminSettingsPage.jsx';
 import Layout from './layouts/Layout.jsx';
 import HomePage from './pages/common/HomePage.jsx';
 import AboutPage from './pages/common/AboutPage.jsx';
@@ -211,10 +219,74 @@ const App = () => {
           }
         />
         <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminUsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/courses"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminCoursesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reviews"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminReviewsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/complaints"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AdminComplaintsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/analytics"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminAnalyticsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/payments"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminPaymentsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/notifications"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminNotificationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/logs"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminLogsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/settings"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminSettingsPage />
             </ProtectedRoute>
           }
         />

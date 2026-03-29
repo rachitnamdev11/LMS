@@ -19,6 +19,10 @@ export const authGuard = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Invalid token' });
     }
 
+    if (user.isBlocked) {
+      return res.status(403).json({ success: false, message: 'Your account has been blocked. Contact admin.' });
+    }
+
     req.user = {
       id: user._id,
       role: user.role,

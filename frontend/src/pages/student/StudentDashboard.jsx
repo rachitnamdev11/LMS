@@ -129,9 +129,9 @@ const StudentDashboard = () => {
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{c.name}</h3>
                     <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-4 flex-1">{c.description}</p>
                     <div className="w-full bg-slate-100 dark:bg-dark-800 rounded-full h-1.5 mt-auto">
-                      <div className="bg-primary-500 h-1.5 rounded-full" style={{ width: '45%' }}></div>
+                      <div className="bg-primary-500 h-1.5 rounded-full" style={{ width: `${c.progressPercentage || 0}%` }}></div>
                     </div>
-                    <p className="text-xs font-medium text-slate-500 mt-2 text-right">45% Complete</p>
+                    <p className="text-xs font-medium text-slate-500 mt-2 text-right">{c.progressPercentage || 0}% Complete</p>
                   </div>
                 </div>
               </Link>

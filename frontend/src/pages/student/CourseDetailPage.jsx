@@ -17,6 +17,7 @@ const CourseDetailPage = () => {
   const [enrollmentChecked, setEnrollmentChecked] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [previewVideoUrl, setPreviewVideoUrl] = useState(null);
+  const [userReview, setUserReview] = useState(null);
 
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -46,7 +47,14 @@ const CourseDetailPage = () => {
       return;
     }
     checkEnrollmentApi(courseId)
-      .then((res) => setIsEnrolled(res?.enrolled === true))
+      .then((res) => {
+        setIsEnrolled(res?.enrolled === true);
+        if (res?.userReview) {
+          setUserReview(res.userReview);
+          setRating(res.userReview.rating);
+          setReviewText(res.userReview.reviewText || '');
+        }
+      })
       .catch(() => setIsEnrolled(false))
       .finally(() => setEnrollmentChecked(true));
   }, [courseId, user]);
@@ -311,14 +319,28 @@ const CourseDetailPage = () => {
              </div>
            </section>
 
-            {/* Rate this Course Section */}
+            {/* Rate border Custom Rate logic */}
             {user?.role === 'student' && isEnrolled && (
               <section className="glass-card p-8 border border-slate-200 dark:border-dark-800 mt-12 shadow-sm rounded-2xl">
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Rate this Course</h2>
-                {reviewSuccess ? (
-                  <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 p-4 rounded-xl flex items-center gap-3">
-                    <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <p className="font-semibold">Thank you for rating this course!</p>
+                {userReview || reviewSuccess ? (
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 p-6 rounded-xl space-y-4">
+                    <div className="flex items-center gap-3">
+                      <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <p className="font-semibold text-lg">{reviewSuccess ? "Thank you for rating this course!" : "You have already rated this course"}</p>
+                    </div>
+                    <div className="bg-white/50 dark:bg-black/20 rounded-lg p-4 border border-emerald-100 dark:border-emerald-800/50">
+                      <div className="flex gap-1 mb-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <svg key={star} className={`w-6 h-6 ${(userReview?.rating || rating) >= star ? 'text-amber-400' : 'text-slate-300 dark:text-slate-600'}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ))}
+                      </div>
+                      {(userReview?.reviewText || reviewText) && (
+                        <p className="text-slate-700 dark:text-slate-300 italic">"{(userReview?.reviewText || reviewText)}"</p>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <form onSubmit={handleReviewSubmit} className="space-y-6">

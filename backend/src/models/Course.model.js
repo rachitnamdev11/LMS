@@ -19,6 +19,7 @@ const courseSchema = new mongoose.Schema(
     },
     enrolledStudents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }],
     isPublished: { type: Boolean, default: false },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     isRemovedByAdmin: { type: Boolean, default: false },
     complaintsCount: { type: Number, default: 0 }
   },
