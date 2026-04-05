@@ -3,7 +3,137 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getCourseDetailApi, checkEnrollmentApi, getWishlistApi, toggleWishlistApi } from '../../services/courseApi.js';
 import { createEnrollmentOrderApi, verifyPaymentApi } from '../../services/paymentApi.js';
 import { addCourseReviewApi } from '../../services/reviewApi.js';
+import { createComplaintApi } from '../../services/complaintApi.js';
 import { useAuth } from '../../hooks/useAuth.js';
+
+const REASON_OPTIONS = [
+  { value: 'pirated_content',      label: '🚫 Pirated / Stolen Content' },
+  { value: 'inappropriate_content', label: '⚠️ Inappropriate Content' },
+  { value: 'technical_issue',       label: '🔧 Technical Issue' },
+  { value: 'other',                 label: '💬 Other' },
+];
+
+// ── Inline Report-Issue component (enrolled students only) ────────────────────
+const ReportIssueSection = ({ courseId, courseName }) => {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [description, setDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!reason) { setError('Please select a reason.'); return; }
+    if (!description.trim()) { setError('Please describe the issue.'); return; }
+    setSubmitting(true);
+    setError('');
+    try {
+      await createComplaintApi({ courseId, reason, description });
+      setSuccess(true);
+      setReason('');
+      setDescription('');
+      setTimeout(() => { setSuccess(false); setOpen(false); }, 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to submit. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <section className="glass-card border border-red-100 dark:border-red-900/30 rounded-2xl overflow-hidden mt-12 shadow-sm">
+      {/* Header — always visible */}
+      <button
+        type="button"
+        id="report-issue-toggle"
+        onClick={() => { setOpen((p) => !p); setSuccess(false); setError(''); }}
+        className="w-full px-8 py-5 flex items-center justify-between group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+            <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div className="text-left">
+            <p className="font-bold text-slate-900 dark:text-white text-sm">Report an Issue</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Found a problem with this course? Let us know.</p>
+          </div>
+        </div>
+        <svg className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Expandable form */}
+      {open && (
+        <div className="px-8 pb-8 border-t border-slate-100 dark:border-dark-800 pt-6">
+          {success ? (
+            <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-xl px-4 py-4">
+              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <p className="font-semibold text-sm">Complaint submitted! Our team will review it shortly.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {error && (
+                <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 rounded-xl px-4 py-3 text-sm font-medium">
+                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  {error}
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Type of issue <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-2 gap-2">
+                  {REASON_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setReason(opt.value)}
+                      className={`text-left px-3 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all ${
+                        reason === opt.value
+                          ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+                          : 'border-slate-200 dark:border-dark-700 text-slate-700 dark:text-slate-300 hover:border-slate-300 bg-white dark:bg-dark-900'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2" htmlFor="report-desc">Describe the issue <span className="text-red-500">*</span></label>
+                <textarea
+                  id="report-desc"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  placeholder="Please provide details about the problem..."
+                  className="w-full rounded-xl border border-slate-200 dark:border-dark-700 bg-white dark:bg-dark-900 px-4 py-3 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/20 transition-all resize-none"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  id="submit-report-btn"
+                  disabled={submitting}
+                  className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition-all shadow-md shadow-red-600/20 disabled:opacity-60 flex items-center gap-2"
+                >
+                  {submitting ? (
+                    <><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Submitting…</>
+                  ) : 'Submit Report'}
+                </button>
+                <button type="button" onClick={() => setOpen(false)} className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
 
 const CourseDetailPage = () => {
   const { user } = useAuth();
@@ -181,6 +311,11 @@ const CourseDetailPage = () => {
             setEnrollmentChecked(true);
             setPaymentSuccess(true);
             setProcessingPayment(false);
+            // Auto-remove from wishlist if it was there
+            if (inWishlist) {
+              try { await toggleWishlistApi(courseId); } catch (_) { /* silent */ }
+              setInWishlist(false);
+            }
           } catch (err) {
             console.error(err);
             alert("Payment verification failed. Please contact support.");
@@ -464,6 +599,11 @@ const CourseDetailPage = () => {
                 )}
               </section>
             )}
+
+            {/* ── Report an Issue (enrolled students only) ── */}
+            {user?.role === 'student' && isEnrolled && (
+              <ReportIssueSection courseId={courseId} courseName={course?.name} />
+            )}
         </div>
 
         {/* Sticky Sidebar */}
@@ -583,27 +723,31 @@ const CourseDetailPage = () => {
                   </svg>
                   Share
                 </button>
-                <div className="w-px bg-slate-200 dark:bg-dark-800" />
-                {user?.role === 'student' ? (
-                  <button
-                    id="wishlist-toggle-btn"
-                    onClick={handleWishlistToggle}
-                    disabled={wishlistLoading}
-                    className={`flex-1 py-2 font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60 ${
-                      inWishlist
-                        ? 'text-pink-600 dark:text-pink-400 hover:text-slate-600 dark:hover:text-slate-300'
-                        : 'text-slate-700 dark:text-slate-300 hover:text-pink-600 dark:hover:text-pink-400'
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill={inWishlist ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                    {inWishlist ? 'Wishlisted' : 'Add to Wishlist'}
-                  </button>
-                ) : (
-                  <button className="flex-1 py-2 font-semibold text-slate-700 dark:text-slate-300 hover:text-pink-600 dark:hover:text-pink-400 transition-colors">
-                    Add to Wishlist
-                  </button>
+                {!isEnrolled && (
+                  <>
+                    <div className="w-px bg-slate-200 dark:bg-dark-800" />
+                    {user?.role === 'student' ? (
+                      <button
+                        id="wishlist-toggle-btn"
+                        onClick={handleWishlistToggle}
+                        disabled={wishlistLoading}
+                        className={`flex-1 py-2 font-semibold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60 ${
+                          inWishlist
+                            ? 'text-pink-600 dark:text-pink-400 hover:text-slate-600 dark:hover:text-slate-300'
+                            : 'text-slate-700 dark:text-slate-300 hover:text-pink-600 dark:hover:text-pink-400'
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill={inWishlist ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                        {inWishlist ? 'Wishlisted' : 'Add to Wishlist'}
+                      </button>
+                    ) : (
+                      <button className="flex-1 py-2 font-semibold text-slate-700 dark:text-slate-300 hover:text-pink-600 dark:hover:text-pink-400 transition-colors">
+                        Add to Wishlist
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>

@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { authGuard, isStudent, isTeacher } from '../middlewares/auth.middleware.js';
-import { createComplaintController } from '../controllers/complaint.controller.js';
+import { createComplaintController, getMyComplaintsController } from '../controllers/complaint.controller.js';
 
 const router = Router();
 
 router.use(authGuard);
+
+// Student: view their own complaints
+router.get('/me', isStudent, getMyComplaintsController);
 
 // Both students and teachers can submit complaints
 router.post('/', (req, res, next) => {

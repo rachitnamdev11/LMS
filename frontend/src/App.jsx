@@ -11,6 +11,7 @@ import StudentDashboard from './pages/student/StudentDashboard.jsx';
 import CourseCatalogPage from './pages/student/CourseCatalogPage.jsx';
 import CourseDetailPage from './pages/student/CourseDetailPage.jsx';
 import LecturePlayerPage from './pages/student/LecturePlayerPage.jsx';
+import StudentComplaintsPage from './pages/student/StudentComplaintsPage.jsx';
 import TeacherDashboard from './pages/teacher/TeacherDashboard.jsx';
 import TeacherCoursesPage from './pages/teacher/TeacherCoursesPage.jsx';
 import TeacherCourseManagePage from './pages/teacher/TeacherCourseManagePage.jsx';
@@ -139,6 +140,14 @@ const App = () => {
           element={
             <ProtectedRoute allowedRoles={['student']}>
               <LeaderboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/student/complaints"
+          element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <StudentComplaintsPage />
             </ProtectedRoute>
           }
         />

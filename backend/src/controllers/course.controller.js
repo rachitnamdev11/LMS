@@ -130,6 +130,22 @@ export const getWishlistController = async (req, res, next) => {
   try {
     const student = await Student.findOne({ user: req.user.id });
     const wishlist = await Wishlist.findOne({ student: student._id }).populate('courses');
+    
+    if (wishlist) {
+      // Auto-remove any courses the student is already enrolled in
+      const enrolledIds = student.enrolledCourses.map(id => id.toString());
+      const initialLength = wishlist.courses.length;
+      
+      wishlist.courses = wishlist.courses.filter(course => 
+        !enrolledIds.includes(course._id.toString())
+      );
+
+      // Save if changes were made
+      if (wishlist.courses.length !== initialLength) {
+        await wishlist.save();
+      }
+    }
+
     return successResponse(res, wishlist || { courses: [] }, 'Wishlist fetched');
   } catch (err) {
     return next(err);

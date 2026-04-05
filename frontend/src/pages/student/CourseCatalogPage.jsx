@@ -1,19 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { searchCoursesApi, toggleWishlistApi } from '../../services/courseApi.js';
+import { searchCoursesApi, toggleWishlistApi, getStudentEnrolledCoursesApi } from '../../services/courseApi.js';
 import { useAuth } from '../../hooks/useAuth.js';
 
 const CourseCatalogPage = () => {
   const { user } = useAuth();
   const [courses, setCourses] = useState([]);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState(new Set());
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     setLoading(true);
     try {
-      const res = await searchCoursesApi({ q });
-      setCourses(res.items || []);
+      const [searchRes, enrolledRes] = await Promise.all([
+        searchCoursesApi({ q }),
+        user?.role === 'student' ? getStudentEnrolledCoursesApi().catch(() => []) : Promise.resolve([])
+      ]);
+      setCourses(searchRes.items || []);
+      
+      if (enrolledRes?.length) {
+        setEnrolledCourseIds(new Set(enrolledRes.map(c => c._id)));
+      }
     } finally {
       setLoading(false);
     }
@@ -100,7 +108,7 @@ const CourseCatalogPage = () => {
                         </span>
                       </div>
                     )}
-                    {(!user || user?.role === 'student') && (
+                    {(!user || user?.role === 'student') && !enrolledCourseIds.has(c._id) && (
                       <button
                         onClick={(e) => { e.preventDefault(); handleWishlist(c._id); }}
                         className="absolute top-3 right-3 p-2 bg-white/50 dark:bg-dark-900/50 backdrop-blur-md rounded-full text-slate-700 dark:text-slate-300 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-white dark:hover:bg-dark-900 transition-all opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0"
