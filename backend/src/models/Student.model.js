@@ -23,7 +23,8 @@ const studentSchema = new mongoose.Schema(
         progressPercentage: { type: Number, default: 0 }
       }
     ],
-    points: { type: Number, default: 0 }
+    points: { type: Number, default: 0 },
+    viewedLectures: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lecture' }]
   },
   {
     timestamps: true

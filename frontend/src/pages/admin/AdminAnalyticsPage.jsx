@@ -46,6 +46,7 @@ const AdminAnalyticsPage = () => {
   const userGrowthData = Object.values(userGrowthMap).sort((a, b) => a.month.localeCompare(b.month));
 
   const completionRate = data?.completionRate || {};
+  const enrollmentSummary = data?.enrollmentSummary || { totalEnrollments: 0, activeEnrollments: 0 };
 
   return (
     <AdminPageLayout>
@@ -55,7 +56,35 @@ const AdminAnalyticsPage = () => {
           <p className="text-slate-500 dark:text-slate-400 mt-1">Platform-wide insights and trends.</p>
         </div>
 
-        {/* Summary Cards */}
+        {/* Enrollment Summary — consistent with Dashboard */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="glass-card p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Total Enrollments</p>
+            </div>
+            <p className="text-3xl font-bold text-violet-600 dark:text-violet-400">{enrollmentSummary.totalEnrollments}</p>
+            <p className="text-xs text-slate-400 mt-1">All paid enrollments ever (including deleted users)</p>
+          </div>
+          <div className="glass-card p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+              </div>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Active Enrollments</p>
+            </div>
+            <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">{enrollmentSummary.activeEnrollments}</p>
+            <p className="text-xs text-slate-400 mt-1">Current students with active course access</p>
+          </div>
+        </div>
+
+        {/* Course Progress Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="glass-card p-6 text-center">
             <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{Math.round(completionRate.avgProgress || 0)}%</p>
@@ -63,11 +92,12 @@ const AdminAnalyticsPage = () => {
           </div>
           <div className="glass-card p-6 text-center">
             <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{completionRate.completed || 0}</p>
-            <p className="text-sm text-slate-500 mt-1">Courses Completed</p>
+            <p className="text-sm text-slate-500 mt-1">Courses Fully Completed</p>
           </div>
           <div className="glass-card p-6 text-center">
             <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">{completionRate.totalTracked || 0}</p>
-            <p className="text-sm text-slate-500 mt-1">Enrollments Tracked</p>
+            <p className="text-sm text-slate-500 mt-1">Student×Course Pairs Tracked</p>
+            <p className="text-xs text-slate-400 mt-0.5">(progress entries, not total enrollments)</p>
           </div>
         </div>
 

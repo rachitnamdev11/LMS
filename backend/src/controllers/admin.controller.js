@@ -23,12 +23,15 @@ export const getAdminDashboardController = async (req, res, next) => {
       Course.countDocuments({ status: 'pending' })
     ]);
 
-    // Active enrollments
+    // Active enrollments — current students still in DB with enrolled courses
     const enrollmentAgg = await Student.aggregate([
       { $project: { count: { $size: { $ifNull: ['$enrolledCourses', []] } } } },
       { $group: { _id: null, total: { $sum: '$count' } } }
     ]);
     const activeEnrollments = enrollmentAgg[0]?.total || 0;
+
+    // Total enrollments ever — from Payment records (survives user deletion)
+    const totalEnrollments = await Payment.countDocuments({ status: 'paid' });
 
     // Revenue
     const revenueAgg = await Payment.aggregate([
@@ -48,6 +51,7 @@ export const getAdminDashboardController = async (req, res, next) => {
       totalTeachers,
       totalCourses,
       pendingCourses,
+      totalEnrollments,
       activeEnrollments,
       totalRevenue,
       recentUsers,
@@ -199,11 +203,23 @@ export const deleteCourseAdminController = async (req, res, next) => {
 // ─── REVIEW MODERATION ────────────────────────────────────────────────────────
 export const listReviewsAdminController = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, courseId, sortBy = 'date_desc' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const filter = {};
+    if (courseId) filter.course = courseId;
+
+    const sortMap = {
+      date_desc: { createdAt: -1 },
+      date_asc: { createdAt: 1 },
+      rating_desc: { rating: -1 },
+      rating_asc: { rating: 1 }
+    };
+    const sortOrder = sortMap[sortBy] || { createdAt: -1 };
+
     const [reviews, total] = await Promise.all([
-      Review.find().sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)).populate('course', 'name').populate('student', 'firstName lastName'),
-      Review.countDocuments()
+      Review.find(filter).sort(sortOrder).skip(skip).limit(parseInt(limit)).populate('course', 'name').populate('student', 'firstName lastName'),
+      Review.countDocuments(filter)
     ]);
     return successResponse(res, { reviews, total, page: parseInt(page), limit: parseInt(limit) }, 'Reviews fetched');
   } catch (err) {
@@ -252,18 +268,27 @@ export const getAnalyticsController = async (req, res, next) => {
       { $sort: { count: -1 } }
     ]);
 
-    // Completion rates
+    // Completion rates (student × course progress pairs)
     const completionData = await Student.aggregate([
       { $unwind: { path: '$courseProgress', preserveNullAndEmptyArrays: false } },
       { $group: { _id: null, avgProgress: { $avg: '$courseProgress.progressPercentage' }, totalTracked: { $sum: 1 }, completed: { $sum: { $cond: [{ $gte: ['$courseProgress.progressPercentage', 100] }, 1, 0] } } } }
     ]);
+
+    // Enrollment summary for consistency with dashboard
+    const enrollmentAgg = await Student.aggregate([
+      { $project: { count: { $size: { $ifNull: ['$enrolledCourses', []] } } } },
+      { $group: { _id: null, total: { $sum: '$count' } } }
+    ]);
+    const activeEnrollments = enrollmentAgg[0]?.total || 0;
+    const totalEnrollments = await Payment.countDocuments({ status: 'paid' });
 
     return successResponse(res, {
       enrollmentTrend,
       topCourses: topCoursesData,
       userGrowth,
       categoryDistribution,
-      completionRate: completionData[0] || { avgProgress: 0, totalTracked: 0, completed: 0 }
+      completionRate: completionData[0] || { avgProgress: 0, totalTracked: 0, completed: 0 },
+      enrollmentSummary: { totalEnrollments, activeEnrollments }
     }, 'Analytics data');
   } catch (err) {
     return next(err);

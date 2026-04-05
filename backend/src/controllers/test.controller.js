@@ -220,23 +220,34 @@ export const getTestAnalyticsController = async (req, res, next) => {
     const teacher = await getTeacherDoc(req.user.id);
     const test = await Test.findById(req.params.testId);
     if (!test) throw new AppError('Test not found', 404);
-    if (test.createdBy.toString() !== teacher._id.toString()) {
+
+    // createdBy stores teacher.user (User ObjectId). Accept either User ID or Teacher doc ID
+    // for backwards compatibility with any data saved before the fix.
+    const createdByStr = test.createdBy?.toString();
+    const ownsTest =
+      createdByStr === teacher.user?.toString() ||
+      createdByStr === teacher._id?.toString();
+    if (!ownsTest) {
       throw new AppError('Forbidden', 403);
     }
 
     const results = await TestResult.find({ test: test._id })
       .populate({ path: 'student', model: Student, select: 'firstName lastName email' });
 
-    const totalStudents = results.length;
+    // Filter out results where the student document might have been deleted,
+    // which prevents 'Cannot read properties of null (reading '_id')' during leaderboard mapping.
+    const validResults = results.filter(r => r && r.student && r.student._id);
+
+    const totalStudents = validResults.length;
     if (totalStudents === 0) {
       return successResponse(res, { totalStudents: 0, avgScore: 0, results: [], questionStats: [] }, 'No attempts yet');
     }
 
-    const avgScore = results.reduce((s, r) => s + r.score, 0) / totalStudents;
+    const avgScore = validResults.reduce((s, r) => s + r.score, 0) / totalStudents;
 
     // Per-question fail stats
     const questionStats = {};
-    for (const r of results) {
+    for (const r of validResults) {
       for (const a of r.answers) {
         const qid = a.questionId?.toString();
         if (!qid) continue;
@@ -261,7 +272,7 @@ export const getTestAnalyticsController = async (req, res, next) => {
     questionStatsArr.sort((a, b) => b.incorrect - a.incorrect);
 
     // Leaderboard — sort by score desc
-    const leaderboard = results
+    const leaderboard = validResults
       .map(r => ({
         studentId: r.student._id,
         name: `${r.student.firstName} ${r.student.lastName}`,

@@ -86,21 +86,33 @@ const viewCache = new Map();
 export const incrementLectureViewController = async (req, res, next) => {
   try {
     const { lectureId } = req.params;
-    const userId = req.user.id;
-    
-    // Create a unique key for this user and lecture
-    const cacheKey = `${userId}_${lectureId}`;
-    const lastViewed = viewCache.get(cacheKey);
-    const now = Date.now();
-    
-    // Prevent duplicate view counts per user per lecture within 1 hour (3600000ms)
-    if (lastViewed && (now - lastViewed < 60 * 60 * 1000)) {
-       // Return early without incrementing if viewed recently
-       return successResponse(res, {}, 'View already recorded recently');
+    const userId = req.user?.id;
+
+    if (userId) {
+      // DB-level check: find student and see if they've already viewed this lecture
+      const student = await Student.findOne({ user: userId });
+      if (student) {
+        const alreadyViewed = student.viewedLectures?.some(
+          (id) => id.toString() === lectureId
+        );
+        if (alreadyViewed) {
+          return successResponse(res, {}, 'View already recorded');
+        }
+        // Mark as viewed
+        await Student.findByIdAndUpdate(student._id, {
+          $addToSet: { viewedLectures: lectureId }
+        });
+      }
+    } else {
+      // Fallback to in-memory for non-auth (anonymous preview)
+      const cacheKey = `anon_${lectureId}`;
+      const lastViewed = viewCache.get(cacheKey);
+      const now = Date.now();
+      if (lastViewed && (now - lastViewed < 60 * 60 * 1000)) {
+        return successResponse(res, {}, 'View already recorded recently');
+      }
+      viewCache.set(cacheKey, now);
     }
-    
-    // Record the view timestamp in cache
-    viewCache.set(cacheKey, now);
 
     const lecture = await Lecture.findByIdAndUpdate(
       lectureId,
