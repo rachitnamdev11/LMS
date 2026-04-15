@@ -120,11 +120,18 @@ export const enrollStudentInCourse = async ({ studentId, courseId }) => {
   return { courseId: course._id, studentId: student._id };
 };
 
-export const toggleWishlistCourse = async ({ studentId, courseId }) => {
-  let wishlist = await Wishlist.findOne({ student: studentId });
+export const toggleWishlistCourse = async ({ userId, studentId, courseId }) => {
+  const query = { $or: [] };
+  if (userId) query.$or.push({ user: userId });
+  if (studentId) query.$or.push({ student: studentId });
+  
+  let wishlist = await Wishlist.findOne(query);
   if (!wishlist) {
-    wishlist = await Wishlist.create({ student: studentId, courses: [] });
+    wishlist = await Wishlist.create({ user: userId, student: studentId, courses: [] });
+  } else if (!wishlist.user && userId) {
+    wishlist.user = userId;
   }
+  
   const index = wishlist.courses.findIndex((c) => c.toString() === courseId.toString());
   if (index === -1) {
     wishlist.courses.push(courseId);

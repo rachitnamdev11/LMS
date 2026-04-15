@@ -14,7 +14,8 @@ import {
   getInstructorStudentsController,
   getInstructorAnalyticsController
 } from '../controllers/course.controller.js';
-import { authGuard, isStudent, isTeacher } from '../middlewares/auth.middleware.js';
+import { authGuard, isStudent, isTeacher, authorizeRoles } from '../middlewares/auth.middleware.js';
+import { ROLES } from '../config/roles.constants.js';
 import { imageUpload } from '../middlewares/upload.middleware.js';
 
 const router = Router();
@@ -26,8 +27,8 @@ router.use(authGuard);
 
 router.get('/student/enrolled/list', getStudentEnrolledCoursesController);
 router.get('/student/enrollment-status/:courseId', checkEnrollmentController);
-router.post('/student/wishlist-toggle', isStudent, wishlistToggleController);
-router.get('/student/wishlist', isStudent, getWishlistController);
+router.post('/student/wishlist-toggle', authorizeRoles(ROLES.STUDENT, ROLES.TEACHER), wishlistToggleController);
+router.get('/student/wishlist', authorizeRoles(ROLES.STUDENT, ROLES.TEACHER), getWishlistController);
 
 router.get('/teacher/my-courses', isTeacher, getTeacherCoursesController);
 router.post('/teacher', isTeacher, imageUpload.single('thumbnail'), createCourseController);

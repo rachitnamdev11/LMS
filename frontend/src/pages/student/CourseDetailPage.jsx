@@ -195,9 +195,9 @@ const CourseDetailPage = () => {
       .finally(() => setEnrollmentChecked(true));
   }, [courseId, user]);
 
-  // Fetch wishlist state (students only)
+  // Fetch wishlist state (students and teachers only)
   useEffect(() => {
-    if (!user || user.role !== 'student') return;
+    if (!user || (user.role !== 'student' && user.role !== 'teacher')) return;
     getWishlistApi()
       .then((data) => {
         const courses = data?.courses || [];
@@ -207,7 +207,7 @@ const CourseDetailPage = () => {
   }, [courseId, user]);
 
   const handleWishlistToggle = async () => {
-    if (!user || user.role !== 'student') return;
+    if (!user || (user.role !== 'student' && user.role !== 'teacher')) return;
     setWishlistLoading(true);
     try {
       await toggleWishlistApi(courseId);
@@ -480,7 +480,7 @@ const CourseDetailPage = () => {
              
              <div className="glass-card shadow-sm border border-slate-200 dark:border-dark-800 overflow-hidden">
                {lectures?.length > 0 ? (
-                 (user?.role === 'teacher' && String(course?.instructor?._id) === String(user?.profileId)) || isEnrolled ? (
+                 (user?.role === 'teacher' && String(course?.instructor?._id) === String(user?.profileId)) || isEnrolled || user?.role === 'admin' ? (
                    <ul className="divide-y divide-slate-100 dark:divide-dark-800">
                      {lectures.map((l, index) => (
                        <li key={l._id} className="group hover:bg-slate-50 dark:hover:bg-dark-800/50 transition-colors">
@@ -626,8 +626,8 @@ const CourseDetailPage = () => {
                   </div>
                 )}
 
-                {/* Hide price if user is enrolled or is the teacher */}
-                {!(isEnrolled || (user?.role === 'teacher' && String(course?.instructor?._id) === String(user?.profileId))) && (
+                {/* Hide price if user is enrolled, is the teacher, or is admin */}
+                {!(isEnrolled || (user?.role === 'teacher' && String(course?.instructor?._id) === String(user?.profileId)) || user?.role === 'admin') && (
                   <div className="text-4xl font-black text-slate-900 dark:text-white mb-6">
                     ₹{course?.price}
                   </div>
@@ -663,6 +663,12 @@ const CourseDetailPage = () => {
                       Video Unlocked
                     </div>
                   )
+
+                /* Admin: full access bypass */
+                ) : user?.role === 'admin' ? (
+                  <div className="w-full py-4 rounded-xl bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 font-bold text-center tracking-wide mb-4 border border-purple-200 dark:border-purple-800">
+                    Full Admin Access
+                  </div>
 
                 /* Not enrolled → Enroll Now / Buy */
                 ) : (
@@ -723,10 +729,10 @@ const CourseDetailPage = () => {
                   </svg>
                   Share
                 </button>
-                {!isEnrolled && (
+                {!isEnrolled && user?.role !== 'admin' && (
                   <>
                     <div className="w-px bg-slate-200 dark:bg-dark-800" />
-                    {user?.role === 'student' ? (
+                    {(user?.role === 'student' || user?.role === 'teacher') && (
                       <button
                         id="wishlist-toggle-btn"
                         onClick={handleWishlistToggle}
@@ -741,10 +747,6 @@ const CourseDetailPage = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                         </svg>
                         {inWishlist ? 'Wishlisted' : 'Add to Wishlist'}
-                      </button>
-                    ) : (
-                      <button className="flex-1 py-2 font-semibold text-slate-700 dark:text-slate-300 hover:text-pink-600 dark:hover:text-pink-400 transition-colors">
-                        Add to Wishlist
                       </button>
                     )}
                   </>

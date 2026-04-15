@@ -2,18 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 import { getInstructorDoubtsApi, replyDoubtApi } from '../../services/doubtApi.js';
-import { getInstructorStudentsApi } from '../../services/courseApi.js';
+import { getInstructorStudentsApi, getWishlistApi } from '../../services/courseApi.js';
+import WishlistSection from '../../components/common/WishlistSection.jsx';
 
 const TeacherDashboard = () => {
   const { user } = useAuth();
   const [doubts, setDoubts] = useState([]);
   const [studentsData, setStudentsData] = useState([]);
+  const [wishlist, setWishlist] = useState([]);
   const [replyText, setReplyText] = useState({});
   const [isSubmitting, setIsSubmitting] = useState({});
 
   useEffect(() => {
     getInstructorDoubtsApi().then(setDoubts).catch(console.error);
     getInstructorStudentsApi().then(setStudentsData).catch(console.error);
+    getWishlistApi().then((data) => setWishlist(data?.courses || [])).catch(console.error);
   }, []);
 
   // Compute pending doubts
@@ -150,6 +153,9 @@ const TeacherDashboard = () => {
           </Link>
         </div>
       </section>
+
+      {/* ── Wishlist Section ── */}
+      <WishlistSection wishlist={wishlist} setWishlist={setWishlist} />
 
     </div>
   );

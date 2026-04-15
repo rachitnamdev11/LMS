@@ -13,6 +13,7 @@ import Wishlist from '../models/Wishlist.model.js';
 import Payment from '../models/Payment.model.js';
 import Lecture from '../models/Lecture.model.js';
 import Review from '../models/Review.model.js';
+import Teacher from '../models/Teacher.model.js';
 import { successResponse } from '../utils/response.util.js';
 
 export const searchCoursesController = async (req, res, next) => {
@@ -119,7 +120,11 @@ export const wishlistToggleController = async (req, res, next) => {
   try {
     const student = await Student.findOne({ user: req.user.id });
     const { courseId } = req.body;
-    const wishlist = await toggleWishlistCourse({ studentId: student._id, courseId });
+    const wishlist = await toggleWishlistCourse({ 
+      userId: req.user.id, 
+      studentId: student ? student._id : null, 
+      courseId 
+    });
     return successResponse(res, wishlist, 'Wishlist updated');
   } catch (err) {
     return next(err);
@@ -129,16 +134,32 @@ export const wishlistToggleController = async (req, res, next) => {
 export const getWishlistController = async (req, res, next) => {
   try {
     const student = await Student.findOne({ user: req.user.id });
-    const wishlist = await Wishlist.findOne({ student: student._id }).populate('courses');
+    const query = { $or: [{ user: req.user.id }] };
+    if (student) query.$or.push({ student: student._id });
+    
+    const wishlist = await Wishlist.findOne(query).populate('courses');
     
     if (wishlist) {
+      let toRemove = [];
+      
       // Auto-remove any courses the student is already enrolled in
-      const enrolledIds = student.enrolledCourses.map(id => id.toString());
+      if (student) {
+        toRemove = student.enrolledCourses.map(id => id.toString());
+      }
+      
+      let teacherId = null;
+      if (req.user.role === 'teacher') {
+        const teacher = await Teacher.findOne({ user: req.user.id });
+        if (teacher) teacherId = teacher._id.toString();
+      }
+
       const initialLength = wishlist.courses.length;
       
-      wishlist.courses = wishlist.courses.filter(course => 
-        !enrolledIds.includes(course._id.toString())
-      );
+      wishlist.courses = wishlist.courses.filter(course => {
+        if (toRemove.includes(course._id.toString())) return false;
+        if (teacherId && course.instructor && course.instructor.toString() === teacherId) return false;
+        return true;
+      });
 
       // Save if changes were made
       if (wishlist.courses.length !== initialLength) {
